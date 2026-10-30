@@ -1,0 +1,9 @@
+[submodule "external/anymove"]
+	path = external/anymove
+	url = https://github.com/sparkdream/anymove.git
+[submodule "external/trellis2"]
+	path = external/trellis2
+	url = https://github.com/sparkdream/TRELLIS.2.git
+[submodule "external/flexgemm"]
+	path = external/flexgemm
+	url = https://github.com/sparkdream/FlexGEMM.git
