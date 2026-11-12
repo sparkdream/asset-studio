@@ -1,0 +1,67 @@
+<!doctype html>
+<!-- The game export's example: every character of manifest.json, its clips and its sockets' items, with equip.js.
+     Serve this folder over http (python3 -m http.server, then http://localhost:8000): browsers don't load modules or
+     GLBs from file://. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game export</title>
+<script type="importmap">
+{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1e22; color: #d8dde3; font: 14px system-ui, sans-serif; }
+  #view { position: fixed; inset: 0; }
+  #ui { position: fixed; top: 12px; left: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        background: #0008; padding: 8px 10px; border-radius: 8px; max-width: calc(100% - 44px); }
+  select { background: #2a2f36; color: inherit; border: 1px solid #444; border-radius: 4px; padding: 3px; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="ui"></div>
+<script type="module">
+import { Viewer, Character, load } from './equip.js';
+
+const manifest = await (await fetch('manifest.json')).json();
+const viewer = new Viewer(document.querySelector('#view'));
+const ui = document.querySelector('#ui');
+const select = (options, value) => {
+  const s = document.createElement('select');
+  for (const [v, label] of options) s.add(new Option(label, v, false, v === value));
+  return s;
+};
+
+async function showCharacter(name) {
+  const spec = manifest.characters[name];
+  const character = new Character(await load(spec.model));
+  viewer.show(character);
+  const clipNames = Object.keys(spec.clips);
+  const clip = select(clipNames.map(c => [c, `${spec.clips[c].move} · ${c}`]), clipNames[0]);
+  const playClip = async () => {
+    if (!clip.value) return;
+    character.addClips(await load(spec.clips[clip.value].file), clip.value);
+    character.play(clip.value, { loop: true });  // every clip loops here, to look at; a game plays one-offs once
+  };
+  clip.onchange = playClip;
+  const pickers = Object.entries(spec.sockets).map(([socket, { fits }]) => {
+    const items = Object.entries(manifest.items).filter(([, it]) => it.fits.includes(fits));
+    const pick = select([['', 'empty'], ...items.map(([n]) => [n, n])], spec.loadout[socket] || '');
+    pick.onchange = async () => character.equip(socket, pick.value ? (await load(manifest.items[pick.value].model)).scene : null);
+    pick.onchange();
+    return [socket.replace('socket_', ''), pick];
+  });
+  ui.replaceChildren(chooser, 'clip', clip, ...pickers.flat());
+  await playClip();
+}
+
+const names = Object.keys(manifest.characters);
+const chooser = select(names.map(n => [n, n]), names[0]);
+chooser.onchange = () => showCharacter(chooser.value);
+if (names.length) showCharacter(names[0]);
+else ui.textContent = 'This export has no characters.';
+</script>
+</body>
+</html>

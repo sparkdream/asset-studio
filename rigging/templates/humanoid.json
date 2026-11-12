@@ -1,0 +1,461 @@
+{
+ "note": "A humanoid deform skeleton placed on SAM 3D Body's MHR joints, and how the retarget drives it. Bones ending in _L are mirrored to _R (MHR l_ to r_). head/tail: an MHR joint, or [joint_a, joint_b, t] for the point t of the way from a to b, or {\"extend\": [a, b, t]} for b plus t of (b - a). Each bone end has a keypoint name (head_kp/tail_kp) the solver, studio and showcase know. Twist bones overlap their parent and take only the part of the limb nearest their own end of it (\"section\": the fraction of the parent's length they weigh, from \"shoulder\" or \"wrist\" end). centre: limb joints moved to the middle of the mesh around them. axis: a limb's root put on the limb's own axis (bone, two points along it).",
+ "bones": [
+  {
+   "name": "pelvis",
+   "parent": null,
+   "head": "root",
+   "tail": "c_spine1",
+   "head_kp": "hips"
+  },
+  {
+   "name": "spine_01",
+   "parent": "pelvis",
+   "head": "c_spine1",
+   "tail": "c_spine2",
+   "head_kp": "spine1"
+  },
+  {
+   "name": "spine_02",
+   "parent": "spine_01",
+   "head": "c_spine2",
+   "tail": "c_spine3",
+   "head_kp": "spine2"
+  },
+  {
+   "name": "spine_03",
+   "parent": "spine_02",
+   "head": "c_spine3",
+   "tail": "c_neck",
+   "head_kp": "chest"
+  },
+  {
+   "name": "neck",
+   "parent": "spine_03",
+   "head": "c_neck",
+   "tail": "c_head",
+   "head_kp": "neck"
+  },
+  {
+   "name": "head",
+   "parent": "neck",
+   "head": "c_head",
+   "tail": "c_head_null",
+   "head_kp": "head",
+   "tail_kp": "head_top"
+  },
+  {
+   "name": "clavicle_L",
+   "parent": "spine_03",
+   "head": "l_clavicle",
+   "tail": "l_uparm",
+   "head_kp": "clav_L"
+  },
+  {
+   "name": "upperarm_L",
+   "parent": "clavicle_L",
+   "head": "l_uparm",
+   "tail": "l_lowarm",
+   "head_kp": "shoulder_L"
+  },
+  {
+   "name": "upperarm_twist_L",
+   "parent": "upperarm_L",
+   "head": "l_uparm",
+   "tail": [
+    "l_uparm",
+    "l_lowarm",
+    0.5
+   ],
+   "twist": {
+    "of": "upperarm_L",
+    "from": "head",
+    "section": 0.5
+   }
+  },
+  {
+   "name": "lowerarm_L",
+   "parent": "upperarm_L",
+   "head": "l_lowarm",
+   "tail": "l_wrist",
+   "head_kp": "elbow_L"
+  },
+  {
+   "name": "lowerarm_twist_L",
+   "parent": "lowerarm_L",
+   "head": [
+    "l_lowarm",
+    "l_wrist",
+    0.5
+   ],
+   "tail": "l_wrist",
+   "twist": {
+    "of": "lowerarm_L",
+    "from": "tail",
+    "section": 0.5
+   }
+  },
+  {
+   "name": "hand_L",
+   "parent": "lowerarm_L",
+   "head": "l_wrist",
+   "tail": "l_middle1",
+   "head_kp": "wrist_L",
+   "tail_kp": "handtip_L"
+  },
+  {
+   "name": "thigh_L",
+   "parent": "pelvis",
+   "head": "l_upleg",
+   "tail": "l_lowleg",
+   "head_kp": "hip_L"
+  },
+  {
+   "name": "thigh_twist_L",
+   "parent": "thigh_L",
+   "head": "l_upleg",
+   "tail": [
+    "l_upleg",
+    "l_lowleg",
+    0.5
+   ],
+   "twist": {
+    "of": "thigh_L",
+    "from": "head",
+    "section": 0.5
+   }
+  },
+  {
+   "name": "calf_L",
+   "parent": "thigh_L",
+   "head": "l_lowleg",
+   "tail": "l_foot",
+   "head_kp": "knee_L"
+  },
+  {
+   "name": "foot_L",
+   "parent": "calf_L",
+   "head": "l_foot",
+   "tail": "l_ball",
+   "head_kp": "ankle_L"
+  },
+  {
+   "name": "ball_L",
+   "parent": "foot_L",
+   "head": "l_ball",
+   "tail": {
+    "extend": [
+     "l_foot",
+     "l_ball",
+     0.45
+    ]
+   },
+   "head_kp": "ball_L",
+   "tail_kp": "toetip_L"
+  }
+ ],
+ "centre": [
+  "elbow_L",
+  "wrist_L",
+  "knee_L",
+  "ankle_L"
+ ],
+ "axis": {
+  "hip_L": [
+   "thigh_L",
+   0.3,
+   0.6
+  ],
+  "shoulder_L": [
+   "upperarm_L",
+   0.35,
+   0.65
+  ]
+ },
+ "crotch": {
+  "note": "The hip joints go this fraction of the height (top joint to the lower ball joint) above the crotch, where the mesh parts the legs (found from the knees up).",
+  "knees": [
+   "l_lowleg",
+   "r_lowleg"
+  ],
+  "hips": [
+   "l_upleg",
+   "r_upleg"
+  ],
+  "top": "c_head_null",
+  "ground": [
+   "l_ball",
+   "r_ball"
+  ],
+  "above": 0.05
+ },
+ "limbs": [
+  [
+   "clavicle_L",
+   "upperarm_L",
+   "lowerarm_L",
+   "hand_L"
+  ],
+  [
+   "thigh_L",
+   "calf_L",
+   "foot_L",
+   "ball_L"
+  ]
+ ],
+ "makehuman": {
+  "note": "Skin weights from MakeHuman's CC0 base body (rigging/makehuman.py), posed onto this skeleton. points: our keypoints on MakeHuman's joints. torso: one frame at the hips and one at the neck (turned with the hips and the shoulders), its weights split along the spine bones afterwards. segments: bone -> [head keypoint, tail keypoint, parent segment], each turned the least from its parent's turn. map: MakeHuman bones to ours (the first matching pattern wins), \"torso\" for the spine. no_skirt: what sits on these bones never takes the skirt's weights (its hem is at the ankles). between: limbs (by their first bone) whose two sides' weights blend about where they meet (the crotch), each leg keeping to itself below where the mesh parts them. not_below: bones nothing below their joint follows (a collar near the chin).",
+  "points": {
+   "hips": "spine05.head",
+   "neck": "neck01.head",
+   "head": "head.head",
+   "head_top": "head.tail",
+   "clav_L": "clavicle.L.head",
+   "shoulder_L": "upperarm01.L.head",
+   "elbow_L": "lowerarm01.L.head",
+   "wrist_L": "wrist.L.head",
+   "handtip_L": "finger3-1.L.head",
+   "hip_L": "upperleg01.L.head",
+   "knee_L": "lowerleg01.L.head",
+   "ankle_L": "foot.L.head",
+   "ball_L": "toe3-1.L.head",
+   "toetip_L": "toe3-3.L.tail"
+  },
+  "no_skirt": [
+   "calf_L",
+   "foot_L",
+   "ball_L"
+  ],
+  "between": [
+   "thigh_L"
+  ],
+  "not_below": [
+   "head",
+   "neck"
+  ],
+  "torso": {
+   "bones": [
+    "pelvis",
+    "spine_01",
+    "spine_02",
+    "spine_03"
+   ],
+   "base": "hips",
+   "top": "neck",
+   "hips": "hip_L",
+   "shoulders": "shoulder_L"
+  },
+  "segments": {
+   "neck": [
+    "neck",
+    "head",
+    "torso_hi"
+   ],
+   "head": [
+    "head",
+    "head_top",
+    "neck"
+   ],
+   "clavicle_L": [
+    "clav_L",
+    "shoulder_L",
+    "torso_hi"
+   ],
+   "upperarm_L": [
+    "shoulder_L",
+    "elbow_L",
+    "clavicle_L"
+   ],
+   "lowerarm_L": [
+    "elbow_L",
+    "wrist_L",
+    "upperarm_L"
+   ],
+   "hand_L": [
+    "wrist_L",
+    "handtip_L",
+    "lowerarm_L"
+   ],
+   "thigh_L": [
+    "hip_L",
+    "knee_L",
+    "torso_lo"
+   ],
+   "calf_L": [
+    "knee_L",
+    "ankle_L",
+    "thigh_L"
+   ],
+   "foot_L": [
+    "ankle_L",
+    "ball_L",
+    "calf_L"
+   ],
+   "ball_L": [
+    "ball_L",
+    "toetip_L",
+    "foot_L"
+   ]
+  },
+  "map": [
+   [
+    "clavicle.L",
+    "clavicle_L"
+   ],
+   [
+    "shoulder01.L",
+    {
+     "clavicle_L": 0.5,
+     "upperarm_L": 0.5
+    }
+   ],
+   [
+    "upperarm0?.L",
+    "upperarm_L"
+   ],
+   [
+    "lowerarm0?.L",
+    "lowerarm_L"
+   ],
+   [
+    "wrist.L",
+    "hand_L"
+   ],
+   [
+    "metacarpal*.L",
+    "hand_L"
+   ],
+   [
+    "finger*.L",
+    "hand_L"
+   ],
+   [
+    "upperleg0?.L",
+    "thigh_L"
+   ],
+   [
+    "lowerleg0?.L",
+    "calf_L"
+   ],
+   [
+    "foot.L",
+    "foot_L"
+   ],
+   [
+    "toe*.L",
+    "ball_L"
+   ],
+   [
+    "pelvis.?",
+    "torso"
+   ],
+   [
+    "root",
+    "torso"
+   ],
+   [
+    "spine0?",
+    "torso"
+   ],
+   [
+    "breast.?",
+    "torso"
+   ],
+   [
+    "neck0?",
+    "neck"
+   ],
+   [
+    "*",
+    "head"
+   ]
+  ]
+ },
+ "retarget": {
+  "map": {
+   "pelvis": "root",
+   "spine_01": "c_spine1",
+   "spine_02": "c_spine2",
+   "spine_03": "c_spine3",
+   "neck": "c_neck",
+   "head": "c_head",
+   "clavicle_L": "l_clavicle",
+   "upperarm_L": "l_uparm",
+   "upperarm_twist_L": "l_uparm_twist1_proc",
+   "lowerarm_L": "l_lowarm",
+   "lowerarm_twist_L": "l_lowarm_twist3_proc",
+   "hand_L": "l_wrist",
+   "thigh_L": "l_upleg",
+   "thigh_twist_L": "l_upleg_twist1_proc",
+   "calf_L": "l_lowleg",
+   "foot_L": "l_foot",
+   "ball_L": "l_ball"
+  },
+  "aim": {
+   "clavicle_L": [
+    "l_clavicle",
+    "l_uparm"
+   ],
+   "upperarm_L": [
+    "l_uparm",
+    "l_lowarm"
+   ],
+   "upperarm_twist_L": [
+    "l_uparm",
+    "l_lowarm"
+   ],
+   "lowerarm_L": [
+    "l_lowarm",
+    "l_wrist"
+   ],
+   "lowerarm_twist_L": [
+    "l_lowarm",
+    "l_wrist"
+   ],
+   "hand_L": [
+    "l_wrist",
+    "l_middle1"
+   ],
+   "thigh_L": [
+    "l_upleg",
+    "l_lowleg"
+   ],
+   "thigh_twist_L": [
+    "l_upleg",
+    "l_lowleg"
+   ],
+   "calf_L": [
+    "l_lowleg",
+    "l_foot"
+   ],
+   "foot_L": [
+    "l_foot",
+    "l_ball"
+   ]
+  },
+  "feet": [
+   "ankle",
+   "ball",
+   "toetip"
+  ],
+  "hips_keypoints": [
+   "left-hip",
+   "right-hip"
+  ],
+  "height_joints": [
+   "root",
+   "c_head"
+  ],
+  "height_bones": [
+   "pelvis",
+   "head"
+  ]
+ },
+ "tethered": [
+  "clavicle_L",
+  "upperarm_L",
+  "lowerarm_L",
+  "hand_L"
+ ],
+ "tethered_note": "Limb bones whose weight is kept to what lies near them along the surface (rigging/blender/build_skeleton.py), so loose clothing hanging beside the limb (a coat's flank by the elbow) is not dragged with it. Not the legs: coat panels over the thighs are handled by the skirt."
+}

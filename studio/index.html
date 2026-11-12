@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Character Studio</title>
 <link rel="icon" href="data:,">
+<script type="importmap">
+{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <style>
 :root {
@@ -25,6 +29,7 @@ select, input, textarea, button { font: inherit; color: var(--text); background:
   border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; }
 textarea { width: 100%; resize: vertical; }
 button { cursor: pointer; }
+button.chip { font-size: 11px; padding: 2px 7px; border-radius: 10px; }
 button:hover { border-color: var(--dim); }
 button.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
 button.keep.on { background: var(--keep); color: #04140c; border-color: var(--keep); }
@@ -60,6 +65,9 @@ details > summary { cursor: pointer; color: var(--dim); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 12px; }
 .clip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .clip.keep { border-color: var(--keep); } .clip.reject { opacity: .55; }
+.clip.picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cappick { width: 16px; height: 16px; cursor: pointer; }
+.selbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .clip video { width: 100%; display: block; background: #000; aspect-ratio: 16 / 9; }
 .clip .cap { border: none; }
 .badge { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--raised); color: var(--dim); }
@@ -71,15 +79,52 @@ details > summary { cursor: pointer; color: var(--dim); }
 .refs img.on { border-color: var(--accent); }
 pre { background: #0e1012; padding: 10px; border-radius: 6px; overflow: auto; max-height: 340px; font-size: 12px;
   white-space: pre-wrap; margin: 6px 0 0; }
-.job { display: grid; grid-template-columns: 90px 1fr auto; gap: 4px 12px; align-items: center; }
+.job { display: grid; grid-template-columns: 110px 1fr auto; gap: 4px 12px; align-items: center; }
+.job.picked { outline: 1px solid var(--accent); }
+.jobpick { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.jobsbar { position: sticky; top: 0; z-index: 2; gap: 8px; flex-wrap: wrap; }
 .status { font-size: 12px; font-weight: 600; text-transform: uppercase; }
 .status.running { color: var(--accent); } .status.done { color: var(--keep); } .status.failed, .status.interrupted { color: var(--reject); }
 .status.queued, .status.cancelled { color: var(--dim); }
 .bar { height: 4px; background: var(--raised); border-radius: 2px; grid-column: 2 / 4; }
 .bar > div { height: 100%; background: var(--accent); border-radius: 2px; }
 .empty { color: var(--dim); padding: 40px; text-align: center; }
+.dot.good { background: var(--keep); } .dot.minor { background: var(--warn); } .dot.bad { background: var(--reject); }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 640px), 1fr)); }  /* two captures a row on a wide screen */
+.pair { display: flex; background: #000; } .pair > * { flex: 1; min-width: 0; }
+.pair video { aspect-ratio: 16 / 9; height: auto; }
+.badge.verdict.good { color: var(--keep); } .badge.verdict.minor { color: var(--warn); } .badge.verdict.bad { color: var(--reject); }
+.timeline { position: relative; height: 26px; background: #0e1012; border-top: 1px solid var(--line); cursor: pointer; }
+.timeline .seg { position: absolute; border-radius: 2px; opacity: .85; min-height: 4px; }
+.timeline .seg:hover { opacity: 1; outline: 1px solid var(--text); }
+.timeline .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); pointer-events: none; }
+.seg.video, .stage.video { --c: #e0b341; } .seg.reading, .stage.reading { --c: #6ea8ff; } .seg.fit, .stage.fit { --c: #b48cff; }
+.seg.skin, .stage.skin { --c: #ec6a5e; } .seg.rig, .stage.rig { --c: #ff8a3d; }
+.timeline .seg { background: var(--c); }
+.issues { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 8px; }
+.issues-wrap { padding: 0 10px 10px; } .issues-wrap > summary { color: var(--dim); font-size: 13px; padding: 4px 0; }
+.issues-wrap .issues { padding: 8px 0 0; }
+.stage-head { align-items: center; gap: 8px; margin-bottom: 2px; } .stage-head .stage { margin: 0; }
+.stage { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--c); margin-bottom: 2px; }
+.issue { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.issue .when { padding: 1px 6px; font-size: 12px; font-variant-numeric: tabular-nums; flex: none; }
+.issue .what { flex: 1; font-size: 13px; } .issue .what.minor, .issue .what.note { color: var(--dim); }
+.issue .what.note::before { content: 'note: '; }
+button.fix { font-size: 12px; padding: 3px 8px; border-color: var(--accent); color: var(--accent); flex: none; }
+.dlg { width: min(760px, 95vw); background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
+.dlg::backdrop { background: rgba(0, 0, 0, .6); }
 #toast { position: fixed; bottom: 16px; right: 16px; background: var(--raised); border: 1px solid var(--line);
   padding: 10px 14px; border-radius: 6px; display: none; max-width: 420px; }
+.vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.vcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.vcard.approved { border-color: var(--keep); } .vcard.missing { border-style: dashed; }
+.vcard > img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: #0e1012; display: block; cursor: zoom-in; }
+.vcard .hole { aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center; color: var(--dim); background: #0e1012; }
+.vcard .cap input.words { flex: 1; min-width: 120px; }
+.history { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 10px 10px; }
+.history img { height: 56px; border: 1px solid var(--line); border-radius: 4px; cursor: zoom-in; background: #000; }
+button.warn { border-color: var(--warn); }
+button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 760px) { .view.on { flex-direction: column; } aside { width: auto; max-height: 30vh; border-right: none; }
   .viewers { flex-direction: column; height: auto; } .viewers > div { height: 55vh; } }
 </style>
@@ -89,36 +134,38 @@ pre { background: #0e1012; padding: 10px; border-radius: 6px; overflow: auto; ma
   <h1>Character Studio</h1>
   <select id="project"></select>
   <nav>
-    <button data-tab="models" class="on">Models</button>
+    <button data-tab="views" class="on">Views</button>
+    <button data-tab="models">Models</button>
     <button data-tab="clips">Clips</button>
+    <button data-tab="motion">Motion</button>
     <button data-tab="jobs">Jobs <span id="jobcount" class="badge"></span></button>
   </nav>
   <div class="spacer"></div>
   <label class="inline"><input type="checkbox" id="hideRejected"> hide rejected</label>
+  <button id="deleteRejected" title="every clip and capture marked Reject goes to the character's .trash folder">Delete rejected</button>
 </header>
 
-<section class="view on" id="models">
+<section class="view" id="models">
   <aside id="modelList"></aside>
   <main>
     <div class="viewers" id="viewers"></div>
     <p class="meta">Click a model to view it; Shift-click another to compare side by side (cameras move together).
-      Keys: K keep, R reject.</p>
-    <details class="card" id="newModel">
-      <summary>New model from an image (TRELLIS.2)</summary>
-      <div style="margin-top:10px">
-        <div class="refs" id="images"></div>
-        <div class="row" style="margin-top:10px">
-          <label>Upload image <input type="file" id="upload" accept="image/png,image/jpeg,image/webp"></label>
-          <label>Project <input id="tProject" size="12"></label>
-          <label>Folder <input id="tFolder" size="12" placeholder="pipeline type"></label>
-          <label>Pipeline <select id="tType"></select></label>
-          <label>Faces <input id="tFaces" type="number" value="200000" step="10000" style="width:100px"></label>
-          <label>Texture <select id="tTex"><option>1024</option><option selected>2048</option><option>4096</option></select></label>
-          <button class="primary" id="tGo">Queue</button>
-        </div>
+      Keys: K keep, R reject. Ctrl + wheel zooms a 3D view; the wheel alone scrolls the page.</p>
+    <!-- the TRELLIS settings, shown in the Views tab (kept here, hidden, so they survive its redraws) -->
+    <div hidden>
+      <div class="row" id="tSettings">
+        <label>Folder <input id="tFolder" size="12" placeholder="pipeline type"></label>
+        <label>Pipeline <select id="tType"></select></label>
+        <label>Faces <input id="tFaces" type="number" value="200000" step="10000" style="width:100px"></label>
+        <label>Texture <select id="tTex"><option>1024</option><option selected>2048</option><option>4096</option></select></label>
+        <label title="Also make a copy painted with the views' own pixels (reference/reproject.py): sharp faces, trims and buckles where the front and back views see, at the views' colours. ~30 s. Both models are kept to compare."><input id="tPaint" type="checkbox" checked> Paint from views</label>
       </div>
-    </details>
+    </div>
   </main>
+</section>
+
+<section class="view on" id="views">
+  <main id="viewsMain"></main>
 </section>
 
 <section class="view" id="clips">
@@ -150,6 +197,7 @@ const api = async (path, body) => {
   if (!r.ok) throw new Error(data.error || r.statusText);
   return data;
 };
+const inChar = p => p.startsWith(S.project + '/') ? p.slice(S.project.length + 1) : p;
 const file = p => '/files/' + p.split('/').map(encodeURIComponent).join('/');
 const mb = n => (n / 2 ** 20).toFixed(n > 2 ** 24 ? 0 : 1) + ' MB';
 const ago = t => { const s = Date.now() / 1000 - t; return s < 3600 ? Math.round(s / 60) + ' min ago' :
@@ -157,8 +205,8 @@ const ago = t => { const s = Date.now() / 1000 - t; return s < 3600 ? Math.round
 function toast(msg, ms = 3500) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
   clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
-const S = { info: null, project: null, data: null, tab: 'models', a: null, b: null, move: null, ref: null, image: null,
-  jobs: [], openLogs: new Set() };
+const S = { info: null, project: null, data: null, tab: 'views', a: null, b: null, move: null, ref: null,
+  jobs: [], openLogs: new Set(), jobSel: new Set(), capSel: new Set() };
 const store = (k, v) => { try { v === undefined ? (v = localStorage.getItem('studio.' + k)) : localStorage.setItem('studio.' + k, v); } catch {} return v; };
 
 // ---------------------------------------------------------------- reviews
@@ -183,20 +231,59 @@ const winPath = p => S.info.distro ? `\\\\wsl.localhost\\${S.info.distro}${S.inf
 const copyBtn = p => h('button', {title: 'Copy the path to open it in Windows (Blender, Explorer)',
   onclick: () => navigator.clipboard.writeText(winPath(p)).then(() => toast('Copied ' + winPath(p)))}, 'Copy path');
 
+// deleting moves things to <project>/.trash/<time>/ (never erased): move them back to restore
+async function trash(items, what) {
+  if (!items.length) return toast('Nothing to delete');
+  if (!confirm(`Move ${what} to the trash?\n\nThe files go to ${S.project}/.trash/ in outputs, so they can be put back.`)) return;
+  try {
+    let r = await api('/api/delete', {project: S.project, items});
+    if (r.busy) {  // jobs still queued or running on these: offer to cancel them rather than refuse
+      const list = r.busy.slice(0, 8).map(j => `• ${j.label} (${j.status}${j.auto ? ', automatic' : ''})`).join('\n')
+        + (r.busy.length > 8 ? `\n… and ${r.busy.length - 8} more` : '');
+      if (!confirm(`${r.busy.length} job${r.busy.length === 1 ? ' works' : 's work'} on what you're deleting:\n\n${list}\n\nCancel ${r.busy.length === 1 ? 'it' : 'them'} and delete?`)) return;
+      r = await api('/api/delete', {project: S.project, items, cancel_jobs: true});
+      pollJobs();
+    }
+    toast(`Moved ${r.moved.length} item${r.moved.length === 1 ? '' : 's'} to ${r.trash}` + (r.cancelled ? ` · cancelled ${r.cancelled} job${r.cancelled === 1 ? '' : 's'}` : ''), 6000);
+    renderedMove = ''; await loadProject();
+    return true;
+  } catch (err) { toast(err.message, 6000); }
+}
+const delBtn = (items, what) => h('button', {class: 'reject', title: 'move it to the character\'s .trash folder', onclick: () => trash(items, what)}, 'Delete');
+
 // ---------------------------------------------------------------- models
 function groupBy(items, key) { const g = {}; for (const i of items) (g[key(i)] ||= []).push(i); return g; }
 
+const SET_NAMES = {front: 'front', front_34: 'front + 3/4', front_side: 'front + side', four: 'front, left, back, right',
+  both_34: 'front + both 3/4s', eight: 'eight views', turntable: 'turntable'};
+function madeFrom(m) {  // what a TRELLIS run was made from (its views.json), in a few words
+  const r = m?.made_from;
+  if (r?.set) return (SET_NAMES[r.set] || r.set) + ' · views ' + Object.entries(r.versions || {}).map(([v, n]) => `${v} v${n ?? '?'}`).join(', ');
+  if (r?.image) return 'one image: ' + (r.view || r.image.split('/').pop());
+  return null;
+}
 function renderModels() {
   const list = $('#modelList'); list.replaceChildren();
-  const models = S.data.models.filter(m => shown(m.path));
+  const showRaw = store('showRaw') === '1';
+  list.append(h('label', {class: 'inline', style: 'padding:8px 14px', title: "TRELLIS's untextured mesh, a by-product of each run's textured model"},
+    h('input', {type: 'checkbox', checked: showRaw, onchange: e => { store('showRaw', e.target.checked ? '1' : '0'); renderModels(); }}),
+    'show untextured meshes'));
+  const models = S.data.models.filter(m => shown(m.path) && (showRaw || !m.raw));
   const groups = groupBy(models, m => m.group);
   for (const g of Object.keys(groups).sort((x, y) => Math.max(...groups[y].map(m => m.mtime)) - Math.max(...groups[x].map(m => m.mtime)))) {
-    list.append(h('h3', {}, g || '/'));
+    const src = madeFrom(groups[g].find(m => m.made_from));
+    const copy = groups[g].find(m => m.rig_copy);
+    list.append(h('h3', {title: src || ''}, g || '/', src ? h('div', {class: 'meta', style: 'text-transform:none;font-weight:normal;letter-spacing:0'}, src) : null,
+      copy ? h('div', {class: 'meta', style: 'text-transform:none;font-weight:normal;letter-spacing:0'},
+        "the rig's mesh" + (typeof copy.rig_copy === 'string' ? ': a copy of ' + inChar(copy.rig_copy).split('/').slice(0, -1).join('/') : '')) : null));
     for (const m of groups[g]) list.append(h('div', {
       class: 'item' + (S.a === m.path ? ' on' : '') + (S.b === m.path ? ' on b' : ''),
       onclick: e => { if (e.shiftKey && S.a && S.a !== m.path) S.b = S.b === m.path ? null : m.path; else { S.a = m.path; if (S.b === m.path) S.b = null; }
         store('model.' + S.project, S.a); renderModels(); }},
-      h('span', {class: 'dot ' + (verdict(m.path) || '')}), h('span', {class: 't'}, m.name), h('small', {}, mb(m.size))));
+      h('span', {class: 'dot ' + (verdict(m.path) || '')}), h('span', {class: 't'}, m.name),
+      m.rig_source ? h('span', {class: 'badge', title: "the current rig was made from this model (rigging/promote.json)"}, 'rig') : null,
+      m.rig_paint === 'wears' && !m.rig_source ? h('span', {class: 'badge', title: "the rig wears this model's texture (rigging/retexture.py)"}, 'rig paint') : null,
+      h('small', {}, mb(m.size))));
   }
   if (!models.length) list.append(h('div', {class: 'empty'}, 'No models yet'));
   renderViewers();
@@ -227,34 +314,231 @@ function renderViewers() {
 }
 function viewerCap(p) {
   const m = S.data.models.find(m => m.path === p) || {};
-  return h('div', {class: 'cap'}, h('span', {class: 'path', title: p}, p, '  ·  ', mb(m.size || 0), '  ·  ', ago(m.mtime || 0)),
-    copyBtn(p), ...reviewControls(p));
+  const inProject = inChar(p).split('/')[0];  // anymove/, rigging/, archive/: already rigged or replaced
+  const item = isItem(S.project) ? S.data.item || {} : null;
+  const forItem = item && !['game', 'anymove', 'rigging', 'archive'].includes(inProject) ? [h('button', {
+    title: "Estimate this model's grip and bake a light copy of it (5,000 faces, a 1024 texture) for the equip preview and the game (rigging/item_game.py)",
+    onclick: async () => {
+      const len = prompt('Real length of the item in metres (TRELLIS makes every model about one unit long). Leave empty to keep ' +
+        (item.length_m ? item.length_m + ' m' : 'it unscaled') + '.', item.length_m || '');
+      if (len === null) return;
+      if (len && !(+len > 0)) return toast('A length in metres, like 0.6');
+      try { await api('/api/jobs/item', {project: S.project, model: p, length_m: len ? +len : undefined}); toast('Queued: see Jobs'); pollJobs(); }
+      catch (err) { toast(err.message, 6000); }
+    }}, item.model && p.endsWith('/' + item.model) ? 'Used for the item (again…)' : 'Use for the item')] : [];
+  const promote = item || ['anymove', 'rigging', 'archive'].includes(inProject) ? forItem : [h('button', {
+    title: "Prep this model into the character's anymove/ and rig it into rigging/ (rigging/promote.py). The current mesh, rig " +
+           'and captures move to archive/ first.',
+    onclick: async () => {
+      if (!confirm(`Rig ${p} as this character's mesh?\n\nThe current mesh, rig and captures move to ${S.project}/archive/ ` +
+                   '(nothing is deleted). Prompts and settings carry over. It takes a few minutes on the GPU.')) return;
+      try { await api('/api/jobs/promote', {project: S.project, model: p}); toast('Queued: see Jobs'); pollJobs(); }
+      catch (err) { toast(err.message); }
+    }}, 'Use for the rig')];
+  const paint = m.rig_paint === 'can' && !item ? [h('button', {
+    title: "Put this model's texture on the rig without rigging again (rigging/retexture.py): the same mesh as the rig's, " +
+           'so the rig, its captures and the game export just change paint. Rendered videos keep the old paint.',
+    onclick: async () => {
+      try { await api('/api/jobs/retexture', {project: S.project, model: p}); toast('Queued: see Jobs'); pollJobs(); }
+      catch (err) { toast(err.message, 6000); }
+    }}, m.rig_source ? 'Put its texture back on the rig' : 'Use its paint on the rig')] : [];
+  const o = m.optimised;
+  const what = [madeFrom(m), m.rig_source ? 'the current rig was made from it' : null,
+    m.rig_paint === 'wears' && !m.rig_source ? 'the rig wears its texture' : null,
+    m.rig_source && m.rig_paint === 'can' ? 'the rig wears another paint of it' : null,
+    o ? `optimised from ${o.from.split('/').slice(-2).join('/')}: ${o.triangles.toLocaleString()} triangles` +
+      (o.mode === 'quads' ? ` (${o.quads.toLocaleString()} quads; quads.obj keeps them for Blender)` : '') + `, ${o.texture} texture` : null,
+    item && item.game && p.endsWith('/' + item.game.model) ? `the light copy for the game: ${item.game.faces} faces, grip at its origin` +
+      (item.game.metres ? `, ${item.length_m} m` : ', in the model\'s units (no real length)') : null,
+    item && item.model && p.endsWith('/' + item.model) ? `the item's model (grip by its ${item.grip?.estimated || '?'})` : null,
+    m.rig_copy ? "the rig's mesh" + (typeof m.rig_copy === 'string' ? ' (a copy of ' + m.rig_copy + ')' : '') : null].filter(Boolean);
+  return h('div', {class: 'cap'}, h('span', {class: 'path', title: p}, p, '  ·  ', mb(m.size || 0), '  ·  ', ago(m.mtime || 0),
+      what.length ? '  ·  ' + what.join(' · ') : ''),
+    copyBtn(p), ...reviewControls(p), ...promote, ...paint,
+    m.layout ? h('button', {onclick: () => openImage(m.layout, 'Face layout · ' + p), title: 'The faces drawn over the body and the head'}, 'Layout') : null,
+    m.optimisable ? optimiseBtn(p) : null,
+    m.paintable ? h('button', {title: "A copy painted with the views' own pixels (reference/reproject.py), beside this one: sharp faces, " +
+        'trims and buckles where the front and back views see. ~30 s.',
+      onclick: async () => {
+        try { await api('/api/jobs/paint', {project: S.project, model: p}); toast('Queued: see Jobs'); pollJobs(); }
+        catch (err) { toast(err.message, 6000); }
+      }}, 'Paint from views') : null);
+}
+// An optimised copy of a TRELLIS model (rigging/optimise.py), a model of its own beside the run: compare, then rig it.
+function optimiseBtn(p) {
+  const btn = h('button', {title: "A copy with fewer triangles, its texture baked again from the run's voxels",
+    onclick: () => {
+      const faces = h('input', {type: 'number', value: store('optFaces') || 30000, min: 1000, max: 500000, step: 1000, style: 'width:90px'});
+      const tex = h('select', {}, [512, 1024, 2048, 4096].map(t => h('option', {value: t}, t)));
+      tex.value = store('optTex') || 2048;
+      const go = h('button', {class: 'fix', onclick: async () => {
+        store('optFaces', faces.value); store('optTex', tex.value);
+        try { await api('/api/jobs/optimise', {project: S.project, model: p, faces: +faces.value, texture: +tex.value}); }
+        catch (err) { return toast(err.message, 6000); }
+        form.replaceWith(h('span', {class: 'meta'}, 'Optimise queued (about 5 minutes): see Jobs')); pollJobs();
+      }}, 'Optimise');
+      const form = h('span', {class: 'row', style: 'display:inline-flex;gap:6px'}, faces, 'triangles, texture', tex, go);
+      btn.replaceWith(form);
+    }}, 'Optimise…');
+  return btn;
 }
 
-function renderImages() {
-  const box = $('#images'); box.replaceChildren();
-  for (const i of S.data.images) box.append(h('img', {src: file(i.path), title: i.path, class: S.image === i.path ? 'on' : '',
-    onclick: () => { S.image = i.path; renderImages(); }}));
-  if (!S.data.images.length) box.append(h('span', {class: 'meta'}, 'No images in this project yet: upload one.'));
+const tSettings = $('#tSettings');
+const tIn = id => tSettings.querySelector('#' + id);  // not $(): the settings may sit in a Views card that is no longer on the page
+const trellisSettings = () => ({folder: tIn('tFolder').value, pipeline: tIn('tType').value, faces: tIn('tFaces').value, texture: tIn('tTex').value,
+  paint: tIn('tPaint').checked});
+tIn('tPaint').checked = store('tPaint') !== 'off';
+tIn('tPaint').onchange = e => store('tPaint', e.target.checked ? 'on' : 'off');
+
+// ---------------------------------------------------------------- reference views (reference/views.py) for multi-view TRELLIS
+// Qwen-Image-Edit makes each missing view from the front; the times are as measured on this machine
+const SET_NOTES = {front: 'the front alone', front_34: 'front and three-quarter right', front_side: 'front and left profile',
+  four: 'front, left, back, right', both_34: 'front and both three-quarters', eight: 'every 45 degrees',
+  turntable: 'front and 7 frames of an orbit video (Wan)'};
+// each character's views are in its own folder: outputs/<character>/ itself, or a folder inside it
+const viewsDirOf = () => { const d = store('views.' + S.project) || '';
+  return d === S.project || d.startsWith(S.project + '/') ? d : S.project; };
+S.vedits = {}; S.vtarget = 'front';
+function setCost(set) {
+  const st = S.views.sets[set];
+  const qwen = st.missing.filter(v => S.views.angles.includes(v)).length, extra = st.views.length - 1;
+  return [qwen ? `Qwen: ~${Math.round(2 + 4.5 * qwen)} min for ${qwen} new view${qwen > 1 ? 's' : ''} (~2 min load + ~4.5 min each)` : null,
+    set === 'turntable' && st.missing.length ? 'Wan 14B: one 3 s orbit clip' : null,
+    extra ? `TRELLIS: +~${20 * extra} s for ${extra} extra view${extra > 1 ? 's' : ''}` : 'TRELLIS: as from one image'].filter(Boolean).join(' · ');
 }
-$('#upload').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
-  const project = $('#tProject').value.trim() || S.project;
-  try {
-    const up = await fetch(`/api/upload?project=${encodeURIComponent(project)}&name=${encodeURIComponent(f.name.replace(/[^A-Za-z0-9_.-]/g, '_'))}`, {method: 'POST', body: f});
-    const i = await up.json(); if (!up.ok) throw new Error(i.error);
-    S.image = i.path; toast('Uploaded ' + i.path);
-    if (project !== S.project) await loadProjects(project); else await loadProject();
-  } catch (err) { toast(err.message); }
-});
-$('#tGo').addEventListener('click', async () => {
-  if (!S.image) return toast('Pick an image first');
-  try {
-    await api('/api/jobs/trellis', {project: $('#tProject').value.trim() || S.project, image: S.image, folder: $('#tFolder').value,
-      pipeline: $('#tType').value, faces: $('#tFaces').value, texture: $('#tTex').value});
-    toast('Queued: see Jobs'); pollJobs();
-  } catch (err) { toast(err.message); }
-});
+let viewsReq = 0;
+async function renderViews() {
+  const n = ++viewsReq;
+  let data;
+  try { data = await api('/api/views?dir=' + encodeURIComponent(viewsDirOf())); } catch (err) { data = {error: err.message}; }
+  if (n !== viewsReq) return;  // a newer request is on its way
+  S.views = data; drawViews();
+}
+async function queueJob(path, body, msg) {
+  try { await api(path, body); toast(msg || 'Queued: see Jobs'); pollJobs(); renderViews(); return true; } catch (err) { toast(err.message, 6000); return false; }
+}
+async function approveView(view, approved) {
+  try { S.views = await api('/api/views/approve', {views_dir: S.views.dir, view, approved}); drawViews(); } catch (err) { toast(err.message, 6000); }
+}
+async function addView(view, image) {
+  if (!image) return toast('Pick or upload an image first');
+  if (S.views.views[view]?.path && !confirm(`Replace the ${view} view? The current one is kept in views/history/.`)) return;
+  try { S.views = await api('/api/views/add', {views_dir: S.views.dir, view, image}); toast(`${image} is now the ${view} view`); drawViews(); }
+  catch (err) { toast(err.message, 6000); }
+}
+function openImage(path, title, view) {  // view: an older version, which can be made the current one again
+  const dlg = h('dialog', {class: 'dlg', style: 'width:min(1000px,96vw)'}, h('div', {class: 'row'}, h('b', {style: 'flex:1'}, title),
+    view ? h('button', {onclick: () => { dlg.close(); addView(view, path); }}, 'Use this version again') : null,
+    h('button', {onclick: () => dlg.close()}, 'Close')),
+    h('img', {src: file(path), style: 'width:100%;max-height:80vh;object-fit:contain;margin-top:8px'}));
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg); dlg.showModal();
+}
+function drawViews() {
+  const main = $('#viewsMain'), V = S.views;
+  const dirIn = h('input', {size: 30, value: inChar(viewsDirOf()) === S.project ? '' : inChar(viewsDirOf()), placeholder: "(the character's folder)",
+    title: `the folder inside outputs/${S.project}/ that holds (or will hold) views/: empty for outputs/${S.project}/ itself`});
+  dirIn.addEventListener('change', () => {
+    let d = dirIn.value.trim().replace(/^outputs\//, '').replace(/^\/+|\/+$/g, '');
+    d = inChar(d === S.project ? '' : d).replace(/(^|\/)views$/, '');
+    store('views.' + S.project, d ? S.project + '/' + d : S.project); renderViews(); });
+  const head = h('div', {class: 'card'},
+    h('h2', {}, 'Reference views ', h('span', {class: 'meta'}, 'views of the subject from around it, for TRELLIS.2 (reference/views.py)')),
+    h('div', {class: 'row'}, h('label', {}, `Views folder (in outputs/${S.project}/)`, dirIn),
+      V.busy?.length ? h('span', {class: 'badge warn', title: 'approving and replacing views waits for these'}, 'being written: ' + V.busy.join('; ')) : null));
+  if (V.error) return main.replaceChildren(head, h('div', {class: 'empty'}, V.error));
+
+  // any image of the project (or an upload) as any view, the front first of all
+  const target = h('select', {onchange: e => S.vtarget = e.target.value}, ...V.order.map(v => h('option', {value: v, selected: v === S.vtarget}, v)));
+  const imgs = h('div', {class: 'refs'}, ...S.data.images.map(i => h('img', {src: file(i.path), title: i.path, class: S.vimage === i.path ? 'on' : '',
+    onclick: () => { S.vimage = i.path; drawViews(); }})));
+  if (!S.data.images.length) imgs.append(h('span', {class: 'meta'}, `No images for this ${isItem(S.project) ? 'item' : 'character'} yet: upload one.`));
+  const up = h('input', {type: 'file', accept: 'image/png,image/jpeg,image/webp', onchange: async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const r = await fetch(`/api/upload?project=${encodeURIComponent(S.project)}&name=${encodeURIComponent(f.name.replace(/[^A-Za-z0-9_.-]/g, '_'))}`, {method: 'POST', body: f});
+      const i = await r.json(); if (!r.ok) throw new Error(i.error);
+      S.vimage = i.path; toast('Uploaded ' + i.path); await loadProject();
+    } catch (err) { toast(err.message); }
+  }});
+  head.append(h('div', {class: 'row', style: 'margin-top:10px'}, h('label', {}, 'Use an image as a view', imgs),
+    h('label', {}, 'Upload', up), h('label', {}, 'As', target),
+    h('button', {class: 'primary', onclick: () => addView(target.value, S.vimage)}, 'Use it'),
+    h('button', {title: 'TRELLIS from the picked image alone, with the TRELLIS settings below; the views stay as they are',
+      onclick: () => S.vimage ? queueJob('/api/jobs/trellis', {project: S.project, image: S.vimage, ...trellisSettings()}, 'TRELLIS queued: see Jobs')
+                              : toast('Pick an image first')}, 'Run TRELLIS on this image')));
+
+  // a set: make what it lacks, then TRELLIS from all of it
+  const sets = Object.keys(V.sets);
+  const set = sets.includes(S.vset) ? S.vset : sets.includes(store('vset.' + S.project)) ? store('vset.' + S.project) : 'four';
+  S.vset = set;
+  const st = V.sets[set];
+  const setSel = h('select', {onchange: e => { S.vset = e.target.value; store('vset.' + S.project, S.vset); drawViews(); }},
+    ...sets.map(k => h('option', {value: k, selected: k === set}, `${k} · ${SET_NOTES[k] || V.sets[k].views.join(', ')}`)));
+  const seed = h('input', {type: 'number', value: S.vseed ?? 0, style: 'width:80px', onchange: e => S.vseed = e.target.value,
+    title: set === 'turntable' ? 'the Wan seed (0: a random one)' : 'the Qwen seed for every view it makes'});
+  const make = set === 'turntable'
+    ? h('button', {class: 'primary', title: 'Wan films the front view orbiting (3 s, 14B); 7 evenly spaced frames become turntable_1..7',
+        onclick: () => queueJob('/api/jobs/turntable', {views_dir: V.dir, seed: seed.value}, 'Turntable queued: Wan, then its frames')},
+        st.missing.filter(v => v !== 'front').length ? 'Make the turntable' : 'Make the turntable again')
+    : st.missing.length ? h('button', {class: 'primary', onclick: () => queueJob('/api/jobs/views', {views_dir: V.dir, set, seed: seed.value},
+        `Queued ${st.missing.length} view${st.missing.length > 1 ? 's' : ''}: see Jobs`)}, `Make the missing ${st.missing.length > 1 ? st.missing.length + ' views' : 'view'}`)
+    : h('span', {class: 'meta'}, 'every view is there');
+  const unapproved = st.unapproved;
+  S.vblend ??= store('vblend');
+  const angled = st.views.every(v => v === 'front' || V.angles.includes(v));  // turntable frames have no known angle
+  const blend = h('select', {disabled: !angled, onchange: e => { S.vblend = e.target.value; store('vblend', S.vblend); },
+      title: angled ? 'how the views are combined where they disagree (a part only some views show)'
+                    : 'turntable frames have no known angle: averaged'},
+    h('option', {value: 'visibility', selected: S.vblend !== 'mean'}, 'by what each view sees'),
+    h('option', {value: 'mean', selected: S.vblend === 'mean'}, 'plain mean'));
+  const run = h('button', {class: 'primary' + (unapproved.length ? ' warn' : ''), disabled: st.missing.length > 0,
+    title: st.missing.length ? 'missing: ' + st.missing.join(', ') : unapproved.length ? 'not approved yet: ' + unapproved.join(', ') : 'every view approved',
+    onclick: () => queueJob('/api/jobs/trellis', {project: S.project, views: set, views_dir: V.dir,
+      ...trellisSettings(), blend: angled ? blend.value : 'mean'}, 'TRELLIS queued: see Jobs')},
+    'Run TRELLIS with this set');
+  const trellisRow = h('div', {class: 'row', style: 'margin-top:10px'});
+  trellisRow.append(tSettings, h('label', {}, 'Blend views ', blend), run,
+    st.missing.length ? h('span', {class: 'meta'}, 'missing: ' + st.missing.join(', ')) :
+      unapproved.length ? h('span', {class: 'badge warn', title: 'a view with a changed pose or design spoils the mesh: look before running'},
+        `⚠ not approved: ${unapproved.join(', ')}`) : h('span', {class: 'badge verdict good'}, 'all approved'));
+  const setCard = h('div', {class: 'card'},
+    h('div', {class: 'row'}, h('label', {}, 'Set', setSel), h('label', {}, 'Seed', seed), make),
+    h('p', {class: 'meta'}, setCost(set)),
+    V.turntable_clips.length ? h('div', {class: 'row'}, h('span', {class: 'meta'}, 'Orbit clips:'),
+      ...V.turntable_clips.map(c => h('button', {onclick: () => openVideo(c, c)}, c.split('/').pop()))) : null,
+    trellisRow);
+
+  const card = name => {
+    const v = V.views[name], have = !!v?.path, qwen = V.angles.includes(name);
+    const eseed = h('input', {type: 'number', value: v?.seed != null ? v.seed + 1 : 0, style: 'width:70px',
+      title: 'seed for Edit and Remake (the next one after this view\'s, so a remake differs)'});
+    const words = h('input', {class: 'words', placeholder: 'edit with words…', value: S.vedits[name] || '', oninput: e => S.vedits[name] = e.target.value});
+    const edit = () => {
+      if (!words.value.trim()) return toast('Say what to change');
+      queueJob('/api/jobs/views_edit', {views_dir: V.dir, view: name, words: words.value, seed: eseed.value}, `Edit of ${name} queued: see Jobs`)
+        .then(ok => { if (ok) delete S.vedits[name]; });
+    };
+    return h('div', {class: 'vcard' + (v?.approved ? ' approved' : '') + (have ? '' : ' missing')},
+      have ? h('img', {src: file(v.path) + '?' + v.mtime, title: v.prompt || (v.source ? 'from ' + v.source : ''),
+        onclick: () => openImage(v.path, `${name} · v${v.version ?? '?'}`)}) : h('div', {class: 'hole'}, 'missing'),
+      h('div', {class: 'cap'}, h('b', {}, name), v?.version ? h('span', {class: 'badge'}, 'v' + v.version) : null,
+        v?.seed != null ? h('span', {class: 'badge'}, 'seed ' + v.seed) : null,
+        h('span', {class: 'meta', title: v?.source ? 'from ' + v.source : ''}, v?.made || ''), h('div', {class: 'spacer'}),
+        have ? h('button', {class: 'keep' + (v.approved ? ' on' : ''), title: 'looked at: same subject, pose and design as the front',
+          onclick: () => approveView(name, !v.approved)}, v.approved ? 'Approved' : 'Approve') : null,
+        qwen ? h('button', {title: 'make this view from the front with Qwen (a new version; the current one is kept in history)',
+          onclick: () => queueJob('/api/jobs/views', {views_dir: V.dir, make: [name], seed: eseed.value}, `${name} queued: see Jobs`)},
+          have ? 'Remake' : 'Make') : null),
+      have ? h('div', {class: 'cap'}, words, eseed, h('button', {onclick: edit}, 'Edit')) : null,
+      v?.history?.length ? h('div', {class: 'history'}, h('span', {class: 'meta'}, 'older:'),
+        ...v.history.map(x => h('img', {src: file(x.path) + '?' + x.mtime, title: 'v' + x.version,
+          onclick: () => openImage(x.path, `${name} · v${x.version} (older)`, name)}))) : null);
+  };
+  const others = V.order.filter(v => !st.views.includes(v) && V.views[v]?.path);
+  main.replaceChildren(head, setCard, h('div', {class: 'vgrid'}, st.views.map(card)),
+    ...others.length ? [h('h2', {style: 'margin:24px 0 10px;font-size:14px'}, 'Other views in this folder'), h('div', {class: 'vgrid'}, others.map(card))] : []);
+}
 
 // ---------------------------------------------------------------- clips
 function moves() {
@@ -265,19 +549,31 @@ function moves() {
 function renderMoves() {
   const list = $('#moveList'); list.replaceChildren();
   const ms = moves();
-  if (!S.move || !ms.find(m => m.key === S.move)) S.move = ms[0]?.key;
+  const rigKeys = S.data.rigs.map(r => 'rig:' + r.creature);
+  const motion = S.tab === 'motion';  // Clips and Motion share this list: Wan clips in one, captures and the rig in the other
+  if (!S.move || !(ms.find(m => m.key === S.move) || (motion && rigKeys.includes(S.move)))) S.move = ms[0]?.key;
+  const pick = key => () => { S.move = key; store('move.' + S.project, key); renderMoves(); };
   for (const [creature, group] of Object.entries(groupBy(ms, m => m.creature))) {
     list.append(h('h3', {}, creature || 'elsewhere'));
-    for (const m of group) {
+    const rig = S.data.rigs.find(r => r.creature === creature);
+    if (rig && motion) list.append(h('div', {class: 'item' + (S.move === 'rig:' + creature ? ' on' : ''), onclick: pick('rig:' + creature)},
+      h('span', {class: 'dot ' + (rig.check ? (rig.check.ok ? 'good' : 'bad') : '')}), h('span', {class: 't'}, 'Rig'),
+      h('small', {}, rig.check ? (rig.check.ok ? 'ok' : 'needs a fix') : 'checking…')));
+    for (const m of group.filter(m => !(motion && m.other))) {
       const kept = m.clips.filter(c => verdict(c.path) === 'keep').length;
-      list.append(h('div', {class: 'item' + (S.move === m.key ? ' on' : ''), onclick: () => { S.move = m.key; store('move.' + S.project, m.key); renderMoves(); }},
-        h('span', {class: 'dot ' + (kept ? 'keep' : '')}), h('span', {class: 't'}, m.move),
-        h('small', {}, m.clips.length + (kept ? ` · ${kept} kept` : ''))));
+      const checks = [...m.clips.map(c => c.check), ...m.captures.map(k => k.check)].filter(Boolean);
+      const worst = checks.some(c => c.verdict === 'bad') ? 'bad' : checks.some(c => c.verdict === 'minor') ? 'minor' : checks.length ? 'good' : '';
+      list.append(h('div', {class: 'item' + (S.move === m.key ? ' on' : ''), onclick: pick(m.key), title: worst && `worst check: ${worst}`},
+        h('span', {class: 'dot ' + (kept ? 'keep' : worst)}), h('span', {class: 't'}, m.move),
+        h('small', {}, motion ? `${m.captures.length} capture${m.captures.length === 1 ? '' : 's'}`
+          : m.clips.length + (kept ? ` · ${kept} kept` : ''))));
     }
   }
   if (S.data.creatures.length) list.append(h('div', {style: 'padding:10px 14px'}, h('button', {onclick: newMove}, '+ New move')));
-  else list.append(h('div', {class: 'empty'}, 'No anymove creature (creature.json) in this project'));
-  renderMove();
+  else list.append(h('div', {class: 'empty'}, isItem(S.project)
+    ? 'Items have no moves of their own: a character holds or wears them (Use for the item, in the Models tab)'
+    : 'No anymove creature (creature.json) for this character yet: rig a model from the Models tab'));
+  if (motion && S.move?.startsWith('rig:')) renderRig(S.move.slice(4)); else renderMove();
 }
 function newMove() {
   const name = prompt('Move name (letters, digits, - _ .)');
@@ -290,35 +586,140 @@ function newMove() {
   renderMoves();
 }
 
+// Several captures at once: select them (or all shown), then Keep, Reject, clear the verdict or Delete. Ticking a box
+// only updates this bar and the card's outline, so playing videos and loaded 3D views stay as they are.
+let selBar = null;
+function captureSelBar(caps) {
+  const all = h('input', {type: 'checkbox', onchange: e => {
+    caps.forEach(k => e.target.checked ? S.capSel.add(k.dir) : S.capSel.delete(k.dir));
+    document.querySelectorAll('#moveMain .cappick').forEach(b => { b.checked = e.target.checked; b.closest('.clip').classList.toggle('picked', b.checked); });
+    bar.update();
+  }});
+  const count = h('span', {class: 'meta'});
+  const chosen = () => caps.filter(k => S.capSel.has(k.dir));
+  const setVerdict = async v => {
+    const ks = chosen();
+    S.data.review = await api('/api/reviews', {project: S.project, paths: ks.map(k => k.glb), verdict: v});
+    toast(`${ks.length} capture${ks.length === 1 ? '' : 's'}: ` + (v ? (v === 'keep' ? 'kept' : 'rejected') : 'verdict cleared'));
+    render();
+  };
+  const btns = [
+    h('button', {class: 'keep', onclick: () => setVerdict('keep')}, 'Keep'),
+    h('button', {class: 'reject', onclick: () => setVerdict('reject')}, 'Reject'),
+    h('button', {title: 'neither kept nor rejected', onclick: () => setVerdict(null)}, 'Clear verdict'),
+    h('button', {class: 'reject', title: 'move them to the character\'s .trash folder', onclick: () => {
+      const ks = chosen();
+      trash(ks.map(k => ({kind: 'capture', path: k.dir})), `${ks.length} capture${ks.length === 1 ? '' : 's'} (${ks.map(k => k.name).join(', ')})`)
+        .then(ok => { if (ok) { ks.forEach(k => S.capSel.delete(k.dir)); renderedMove = ''; render(); } });
+    }}, 'Delete')];
+  const bar = h('div', {class: 'selbar'}, h('label', {class: 'inline'}, all, 'Select all'), count, ...btns);
+  bar.update = () => {
+    const n = chosen().length;
+    all.checked = caps.length > 0 && n === caps.length; all.indeterminate = n > 0 && n < caps.length;
+    count.textContent = n ? `${n} of ${caps.length} selected:` : 'or tick captures';
+    btns.forEach(b => { b.disabled = !n; b.style.display = n ? '' : 'none'; });
+  };
+  bar.update();
+  return bar;
+}
+
 let renderedMove = '';
 function renderMove() {
   const main = $('#moveMain');
   const m = moves().find(m => m.key === S.move);
-  if (!m) return main.replaceChildren(h('div', {class: 'empty'}, 'No clips yet'));
-  const sig = JSON.stringify([m, S.data.review, $('#hideRejected').checked]);
+  const motion = S.tab === 'motion';
+  if (!m) return main.replaceChildren(h('div', {class: 'empty'}, motion ? 'No moves yet' : 'No clips yet'));
+  const sig = JSON.stringify([m, S.data.review, $('#hideRejected').checked, S.tab]);
   if (sig === renderedMove) return;  // don't reload playing videos for nothing
   const keepPrompt = renderedMove && main.querySelector('#prompt')?.dataset.key === m.key ? main.querySelector('#prompt').value : null;
   renderedMove = sig;
 
   const clips = m.clips.filter(c => shown(c.path)).sort((x, y) => y.mtime - x.mtime);
   const videos = [];
-  const clipCard = (c, capture) => {
+  const clipCard = c => {
     const v = h('video', {src: file(c.path), controls: true, preload: 'metadata', muted: true, loop: $('#loop')?.checked ?? true, playsinline: true});
     v.muted = true; v.dataset.fps = /14b/.test(c.path) ? 16 : 24;
     videos.push(v);
-    const differs = !capture && c.prompt && m.prompt && c.prompt !== m.prompt;
+    const differs = c.prompt && m.prompt && c.prompt !== m.prompt;
+    const seek = t => { v.pause(); v.currentTime = t; };
+    const joints = c.overlay ? h('label', {class: 'inline', title: 'the joints the reader found, front and side'},
+      h('input', {type: 'checkbox', onchange: e => { const t = v.currentTime; v.src = file(e.target.checked ? c.overlay : c.path); v.currentTime = t; }}), 'joints') : null;
     return h('div', {class: 'clip ' + (verdict(c.path) || '')}, v,
+      c.check ? timeline(c.check, v, seek) : null,
       h('div', {class: 'cap'},
         h('b', {}, c.label), c.job ? h('span', {class: 'badge'}, `${c.job.model} · seed ${c.job.seed}`) : null,
         differs ? h('span', {class: 'badge warn', title: c.prompt}, 'other prompt') : null,
-        h('span', {class: 'meta'}, ago(c.mtime)), h('div', {class: 'spacer'}),
+        verdictBadge(c.check, c.two_camera), h('span', {class: 'meta'}, ago(c.mtime)), h('div', {class: 'spacer'}), joints,
+        c.two_camera ? h('button', {title: 'read the joints and fit the rig (tools/capture.sh)', onclick: () => capture(c, m)},
+          c.captures.length ? 'Capture again' : 'Capture') : null,
         c.log ? h('button', {onclick: () => showLog(c.log)}, 'Log') : null, copyBtn(c.path),
-        ...reviewControls(c.path)),
-      differs || (c.prompt && !m.prompt) ? h('details', {style: 'padding:0 10px 10px'}, h('summary', {}, 'prompt used'), h('pre', {}, c.prompt),
+        ...reviewControls(c.path), delBtn([{kind: 'clip', path: c.path}], `the clip ${c.label}`)),
+      c.check ? issueList(c.check, seek, {m, clip: c}) : null,
+      c.prompt && (differs || !m.prompt) ? h('details', {style: 'padding:0 10px 10px'}, h('summary', {}, 'prompt used'), h('pre', {}, c.prompt),
         h('button', {onclick: () => { $('#prompt').value = c.prompt; toast('Prompt loaded into the editor'); }}, 'Use this prompt')) : null);
+  };
+  const captureCard = k => {
+    const v = k.showcase ? h('video', {src: file(k.showcase), controls: true, preload: 'metadata', muted: true, loop: true, playsinline: true}) : null;
+    if (v) { v.muted = true; v.dataset.fps = 16; videos.push(v); }
+    const mv = k.glb ? h('model-viewer', {src: file(k.glb), 'camera-controls': true, autoplay: !v, 'environment-image': 'neutral',
+      'shadow-intensity': '1', style: 'aspect-ratio:4/3;height:auto'}) : null;
+    // the 3D view follows the showcase: the video runs at the clip's speed, the animation `speed` times faster
+    const speed = k.speed || 1;
+    const follow = () => { if (mv?.loaded) mv.currentTime = v.currentTime / speed; };
+    if (v && mv) {
+      mv.addEventListener('load', () => { mv.play(); mv.pause(); follow(); });  // play picks the animation to show
+      const tick = () => { follow(); if (!v.paused) requestAnimationFrame(tick); };
+      v.addEventListener('play', () => requestAnimationFrame(tick));
+      for (const e of ['pause', 'seeked', 'timeupdate']) v.addEventListener(e, follow);
+    }
+    const seek = t => {  // t on the clip's timeline
+      if (v) { v.pause(); v.currentTime = t; return; }  // the 3D view follows
+      if (mv) {  // a model still loading takes the time once it has
+        const set = () => { mv.play(); mv.pause(); mv.currentTime = t / speed; };
+        mv.loaded ? set() : mv.addEventListener('load', set, {once: true});
+      }
+    };
+    const src = k.source && m.clips.find(c => c.path === k.source);
+    const pick = h('input', {type: 'checkbox', class: 'cappick', checked: S.capSel.has(k.dir), title: 'select (for Keep, Reject or Delete on all selected)',
+      onchange: e => { e.target.checked ? S.capSel.add(k.dir) : S.capSel.delete(k.dir); card.classList.toggle('picked', e.target.checked); selBar.update(); }});
+    pick.dataset.dir = k.dir;
+    const card = h('div', {class: 'clip capture ' + (verdict(k.glb) || '') + (S.capSel.has(k.dir) ? ' picked' : '')},
+      h('div', {class: 'pair'}, v, mv),
+      k.check ? timeline(k.check, v, seek) : null,
+      h('div', {class: 'cap'}, pick, h('b', {}, k.name), verdictBadge(k.check, true, k.checking),
+        k.loop ? h('span', {class: 'badge', title: `frames ${k.loop.frames.join('–')} of ${k.loop.from}; the largest angle closed at the seam ${k.loop.seam_max_deg}°`},
+          `loop · ${k.loop.seconds} s · ` + (k.loop.in_place ? 'in place' : `travels ${Math.hypot(...k.loop.travel_per_cycle_m).toFixed(2)} m a cycle`)) : null,
+        h('span', {class: 'meta', title: k.kimodo || ''}, k.loop ? 'from ' + k.loop.from : k.kimodo ? 'Kimodo · ' + (k.kimodo.length > 60 ? k.kimodo.slice(0, 60) + '…' : k.kimodo) : src ? 'from ' + src.label
+          : k.source ? 'from ' + k.source.split('/runs/videos/')[1] : 'source clip unknown'),
+        k.rig ? h('span', {class: 'meta', title: k.rig.assumed ? 'not recorded when it was made: the current rig is assumed' : `rig built ${k.rig.built || '?'}`},
+          'rig: ' + (k.rig.model ? (/_textured(_reprojected)?\.glb$/.test(k.rig.model) ? k.rig.model.split('/').slice(0, -1).join('/') + (/_reprojected\.glb$/.test(k.rig.model) ? ' (painted)' : '') : k.rig.model) : '?') + (k.rig.built ? ' · built ' + k.rig.built : '') + (k.rig.assumed ? ' (assumed)' : '')) : null,
+        h('span', {class: 'meta'}, ago(k.mtime)), h('div', {class: 'spacer'}),
+        k.rig_stale ? h('button', {class: 'fix', title: 'this animation was exported before the rig was last rebuilt',
+          onclick: async e => { await api('/api/jobs/reexport', {capture: k.dir}); e.target.replaceWith(h('span', {class: 'meta'}, 'export queued')); pollJobs(); }},
+          'Export again') : null,
+        k.overlay ? h('button', {onclick: () => openVideo(k.overlay, 'joints read · ' + k.name)}, 'Joints') : null,
+        k.loop ? null : loopBtn(k), copyBtn(k.glb), ...reviewControls(k.glb), delBtn([{kind: 'capture', path: k.dir}], `the capture ${k.name}`)),
+      k.check ? issueList(k.check, seek, {m, capture: k}) : null);
+    return card;
   };
 
   const parts = [];
+  if (motion) {
+    parts.push(kimodoCard(m));
+    const caps = [...m.captures].filter(k => shown(k.glb)).sort((x, y) => y.mtime - x.mtime);
+    for (const d of [...S.capSel]) if (!caps.some(k => k.dir === d)) S.capSel.delete(d);  // another move, hidden, or gone
+    selBar = captureSelBar(caps);
+    parts.push(h('div', {class: 'toolbar', style: 'flex-wrap:wrap'},
+      h('button', {onclick: () => videos.forEach(v => { v.currentTime = 0; v.play(); })}, '▶ Play all from start'),
+      h('button', {onclick: () => videos.forEach(v => v.paused ? v.play() : v.pause())}, 'Play / pause all'),
+      h('span', {class: 'meta', title: 'from a clip (Clips tab: Capture) or from words (Kimodo, above) · Ctrl + wheel zooms a 3D view'},
+        `${caps.length} capture${caps.length === 1 ? '' : 's'}`),
+      h('div', {class: 'spacer'}), selBar));
+    parts.push(caps.length ? h('div', {class: 'grid wide'}, caps.map(captureCard)) : h('div', {class: 'empty'}, 'No captures of this move yet'));
+    main.replaceChildren(...parts);
+    main.videos = videos;
+    return;
+  }
   if (!m.other) parts.push(generateCard(m, keepPrompt));
   parts.push(h('div', {class: 'toolbar'},
     h('button', {onclick: () => videos.forEach(v => { v.currentTime = 0; v.play(); })}, '▶ Play all from start'),
@@ -328,18 +729,399 @@ function renderMove() {
     h('label', {class: 'inline'}, 'speed', h('select', {id: 'speed', onchange: e => videos.forEach(v => v.playbackRate = +e.target.value)},
       ...[0.25, 0.5, 1, 1.5].map(s => h('option', {value: s, selected: s === 1}, s + '×')))),
     h('label', {class: 'inline'}, h('input', {type: 'checkbox', id: 'loop', checked: true, onchange: e => videos.forEach(v => v.loop = e.target.checked)}), 'loop'),
-    h('span', {class: 'meta'}, `${clips.length} clip${clips.length === 1 ? '' : 's'}`)));
+    h('span', {class: 'meta'}, `${clips.length} clip${clips.length === 1 ? '' : 's'}`),
+    m.other ? null : h('div', {class: 'spacer'}),
+    m.other ? null : h('button', {class: 'reject', title: 'its prompt, clips and captures go to the character\'s .trash folder',
+      onclick: () => trash([{kind: 'move', creature: m.creature, move: m.move}, ...m.captures.map(k => ({kind: 'capture', path: k.dir}))],
+        `the move ${m.move} (its prompt, ${m.clips.length} clip${m.clips.length === 1 ? '' : 's'} and ${m.captures.length} capture${m.captures.length === 1 ? '' : 's'})`)},
+      'Delete move')));
   parts.push(clips.length ? h('div', {class: 'grid'}, clips.map(c => clipCard(c))) : h('div', {class: 'empty'}, 'No clips for this move yet'));
-  if (m.captures.length) {
-    parts.push(h('h2', {style: 'margin:24px 0 10px;font-size:14px'}, 'Captures'));
-    const glbs = m.captures.filter(c => c.path.endsWith('.glb')), mp4s = m.captures.filter(c => c.path.endsWith('.mp4'));
-    parts.push(h('div', {class: 'grid'}, mp4s.map(c => clipCard(c, true)),
-      glbs.map(c => h('div', {class: 'clip'}, h('model-viewer', {src: file(c.path), 'camera-controls': true, autoplay: true,
-        'environment-image': 'neutral', 'shadow-intensity': '1', style: 'aspect-ratio:16/9;height:auto'}),
-        h('div', {class: 'cap'}, h('b', {}, c.label), h('div', {class: 'spacer'}), copyBtn(c.path), ...reviewControls(c.path))))));
-  }
+  if (m.captures.length) parts.push(h('p', {class: 'meta', style: 'margin-top:18px'}, `${m.captures.length} capture${m.captures.length === 1 ? '' : 's'} of this move: `,
+    h('a', {href: '#', onclick: e => { e.preventDefault(); setTab('motion'); }}, 'see Motion')));
   main.replaceChildren(...parts);
   main.videos = videos;
+}
+
+// A capture made to loop (rigging/loop.py): a walk cycle from a walk, an idle from a stance
+function loopBtn(k) {
+  const how = h('select', {title: 'in place: the forward travel taken out, for a cycle the game moves; root motion: the travel kept, ' +
+    'and the game moves the character by the travel per cycle'}, h('option', {value: '1'}, 'in place'), h('option', {value: ''}, 'root motion'));
+  return h('span', {class: 'inline'}, how, h('button', {title: 'find the stretch whose end matches its start, close the seam and export it as a looping capture',
+    onclick: async () => {
+      try { await api('/api/jobs/loop', {capture: k.dir, in_place: !!how.value}); toast('Queued: see Jobs'); pollJobs(); }
+      catch (err) { toast(err.message); }
+    }}, 'Make a loop'));
+}
+
+// Motion from words: rigging/kimodo_capture.py, each sample a capture on the character's rig
+function kimodoCard(m) {
+  const last = [...m.captures].filter(k => k.kimodo).sort((x, y) => y.mtime - x.mtime)[0];
+  const text = h('textarea', {id: 'kimodoText', rows: 2, style: 'width:100%', placeholder: 'A short caption, like mocap data: "A person swings a sword horizontally from right to left with their right hand."'},
+    last?.kimodo || '');
+  const dur = h('input', {type: 'number', value: 2, min: 0.5, max: 10, step: 0.5, style: 'width:70px'});
+  const n = h('input', {type: 'number', value: 4, min: 1, max: 8, style: 'width:60px'});
+  const seed = h('input', {id: 'kimodoSeed', type: 'number', value: Math.floor(Math.random() * 1000), style: 'width:80px'});
+  const project = S.project;
+  return h('details', {id: 'kimodoCard', class: 'card', open: !m.captures.length},
+    h('summary', {}, 'Generate with Kimodo (motion from words)'),
+    h('div', {style: 'margin-top:10px'}, text,
+      h('div', {class: 'row', style: 'margin-top:8px'},
+        h('label', {}, 'seconds ', dur), h('label', {}, 'samples ', n), h('label', {}, 'seed ', seed),
+        h('span', {class: 'meta'}, 'humanoids only · about 17 GB of GPU · each sample becomes a capture'),
+        h('div', {class: 'spacer'}),
+        h('button', {class: 'primary', onclick: async () => {
+          if (!text.value.trim()) return toast('Write what the character does');
+          try { await offerCancelChecks(project, m.move);
+                await api('/api/jobs/kimodo', {project, move: m.move, prompt: text.value, duration: dur.value, samples: n.value, seed: seed.value});
+                toast('Queued: see Jobs'); pollJobs(); } catch (err) { toast(err.message); }
+        }}, 'Generate')),
+      recipeBox(m, text, dur, n, seed)));
+}
+
+// A move's Kimodo recipe (anymove/prompts/<move>.kimodo.json, rigging/kimodo_capture.py --recipe): the prompt plus
+// keyframes pinned from other Kimodo captures, for moves words alone don't get (a jump into a twirl into a lunge).
+const RECIPE_HELP = `Keys: "prompt", "duration", "samples"; "poses": [{"at": seconds or "end", "from": "CAPTURE:FRAME",
+  "arms"/"legs": "CAPTURE:FRAME" (take them from another frame; a list applies in order, and "CAPTURE:FRAME*0.5"
+  goes only half way there, e.g. arms half spread), "facing": degrees, "hips": metres, "straight": true
+  (knees), "upright": true (spine)}]; "headings": [{"at", "facing"}]; "jump": {"apex": s, "hips": m at the top,
+  "every": frames, "forward": metres travelled, "crouch": {pose}, "spin": {"turns", "seconds", "start": s from takeoff (negative: spins as
+  it pushes off)}, "pose": {pose held in the air},
+  "release": {"arms": "CAPTURE:FRAME", "seconds": 0.2, "legs": "CAPTURE:FRAME*0.45", "legs_seconds": 0.25} (the air pose's
+  arms whip into these, and its legs reach for these, just before touchdown)}.
+Make the key poses as moves of their own first (a landing, a stance), then pin them here. Click a capture below to insert it.`;
+function recipeBox(m, text, dur, n, seed) {
+  const project = S.project;
+  const ta = h('textarea', {rows: 14, spellcheck: false, style: 'width:100%;font-family:monospace;font-size:12px'});
+  const where = h('span', {class: 'meta'});
+  const chips = h('div', {class: 'row', style: 'flex-wrap:wrap;gap:4px;margin-top:6px'});
+  const insert = name => {
+    const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
+    ta.value = ta.value.slice(0, a) + name + ta.value.slice(b);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = a + name.length;
+  };
+  const starter = () => JSON.stringify({prompt: text.value.trim() || 'A person ...', duration: Number(dur.value) || 3,
+    samples: Number(n.value) || 4, poses: [{at: 'end', from: 'CAPTURE:FRAME'}]}, null, 1);
+  api(`/api/kimodo_recipe?project=${encodeURIComponent(project)}&move=${encodeURIComponent(m.move)}`).then(r => {
+    ta.value = r.text ?? '';
+    where.textContent = r.text ? r.path : 'no recipe yet: "Start one" fills in the prompt above';
+    chips.replaceChildren(...r.sources.map(c => h('button', {class: 'chip', title: 'insert at the cursor; add :FRAME for a frame (default: the last)',
+      onclick: () => insert(c)}, c)));
+  }).catch(err => where.textContent = err.message);
+  const save = async () => {
+    const r = await api('/api/kimodo_recipe', {project, move: m.move, text: ta.value});
+    ta.value = r.text; where.textContent = 'saved: ' + r.path;
+  };
+  return h('details', {style: 'margin-top:10px', open: false},
+    h('summary', {}, 'Keyframes (recipe)'),
+    h('pre', {class: 'meta', style: 'white-space:pre-wrap;margin:6px 0'}, RECIPE_HELP),
+    ta, where, chips,
+    h('div', {class: 'row', style: 'margin-top:8px'},
+      h('button', {onclick: () => { if (!ta.value.trim() || confirm('Replace the recipe with a new one?')) ta.value = starter(); }}, 'Start one'),
+      h('button', {onclick: async () => { try { await save(); toast('Recipe saved'); } catch (err) { toast(err.message); } }}, 'Save'),
+      h('div', {class: 'spacer'}),
+      h('button', {class: 'primary', title: 'saves the recipe, then runs Kimodo with its prompt, length, samples and keyframes; the seed is the one above',
+        onclick: async () => {
+          try { await save();
+                await offerCancelChecks(project, m.move);
+                await api('/api/jobs/kimodo', {project, move: m.move, recipe: true, seed: seed.value});
+                toast('Queued: see Jobs'); pollJobs(); } catch (err) { toast(err.message); }
+        }}, 'Generate from recipe')));
+}
+
+// ---------------------------------------------------------------- what the checks found
+const STAGES = {video: 'the Wan clip', reading: 'reading the clip', fit: 'fitting the rig', skin: 'the skin', rig: 'the rig'};
+const fmt = t => t.toFixed(2) + ' s';
+function verdictBadge(check, checkable = true, checking = false) {
+  if (!check) return checkable ? h('span', {class: 'badge', title: 'the checks run by themselves; see Jobs'}, 'checking…') : null;
+  const n = check.issues.filter(i => i.severity !== 'note').length;
+  const tip = 'score out of 100: each problem costs its share of the clip, video problems most, a limb hidden in one view least' +
+    (check.from_capture ? `; found while capturing ${check.from_capture}` : '');
+  return h('span', {class: 'badge verdict ' + check.verdict, title: tip},
+    `${check.score ?? '?'} · `, n ? `${n} problem${n > 1 ? 's' : ''}` : 'no problems', checking ? ' · rechecking' : '');
+}
+function timeline(check, video, seek) {
+  const d = check.duration || video?.duration || 1;
+  const bar = h('div', {class: 'timeline', title: 'problems over time; click one to jump there'});
+  const lanes = [...new Set(check.issues.map(i => i.limb))];
+  check.issues.forEach(i => bar.append(h('div', {class: 'seg ' + i.stage, title: `${fmt(i.t0)}–${fmt(i.t1)} · ${i.limb}: ${i.what}`,
+    style: `left:${100 * i.t0 / d}%;width:${Math.max(0.8, 100 * (i.t1 - i.t0) / d)}%;top:${4 + 100 * lanes.indexOf(i.limb) / Math.max(lanes.length, 1) * 0.8}%;height:${80 / Math.max(lanes.length, 1)}%`,
+    onclick: () => seek(i.peak_t)})));
+  const head = h('div', {class: 'playhead'});
+  bar.append(head);
+  if (video) video.addEventListener('timeupdate', () => head.style.left = `${100 * video.currentTime / d}%`);
+  return bar;
+}
+const ORDER = ['video', 'reading', 'fit', 'skin', 'rig'];  // the pipeline's order: an earlier stage's problem spoils the rest
+function issueList(check, seek, ctx) {
+  if (!check.issues.length) return null;
+  const byStage = groupBy(check.issues, i => i.stage);
+  const stages = ORDER.filter(s => byStage[s]);
+  const upstream = byStage.video?.some(i => i.severity === 'major');
+  // a capture made from words has no clip: what the checks file under "video" is in the motion Kimodo made
+  const kimodo = !!ctx.capture?.kimodo;
+  const body = h('div', {class: 'issues'},
+    upstream && stages.length > 1 ? h('p', {class: 'meta', style: 'margin:0'}, kimodo ?
+      'Start with the motion: the skin and rig can only look as good as the movement they follow.' :
+      'Start with the Wan clip: the later stages can only be as good as the video they read.') : null,
+    stages.map(stage => {
+      const list = byStage[stage];
+      // one button per fix, covering every problem it addresses
+      const offers = list.flatMap(i => [i.fix, i.alt].filter(Boolean).map(fix => ({...i, fix})));  // alt: a second way out
+      const fixes = Object.values(groupBy(offers, i => i.fix.action + (i.fix.solve || '')));
+      return h('div', {},
+        h('div', {class: 'row stage-head'}, h('div', {class: 'stage ' + stage}, 'From ' + (kimodo && stage === 'video' ? 'the motion (Kimodo)' : STAGES[stage])),
+          ...fixes.map(group => fixButton(group, ctx))),
+        list.map(i => h('div', {class: 'issue'},
+          h('button', {class: 'when', title: 'jump there', onclick: () => seek(i.peak_t)}, fmt(i.t0) + (i.t1 - i.t0 > 0.1 ? '–' + fmt(i.t1) : '')),
+          h('span', {class: 'what ' + i.severity}, i.what))));
+    }));
+  if (!check.from_capture) return body;
+  return h('details', {class: 'issues-wrap'}, h('summary', {}, `Found while capturing ${check.from_capture} (fixes are on the capture below)`), body);
+}
+const fixed = new Set();
+function fixButton(group, ctx) {
+  const f = group[0].fix;
+  if (ctx.capture?.kimodo && f.action === 'regenerate')  // no clip to make again: a new seed, or new words, in the Kimodo card
+    return h('button', {class: 'fix', title: 'opens the Kimodo card above with this prompt and a new seed', onclick: () => {
+      const card = $('#kimodoCard'); if (!card) return;
+      card.open = true; $('#kimodoText').value = ctx.capture.kimodo; $('#kimodoSeed').value = Math.floor(Math.random() * 1000);
+      card.scrollIntoView({behavior: 'smooth', block: 'start'}); $('#kimodoText').focus();
+    }}, 'Try another seed or prompt');
+  const id = JSON.stringify([ctx.clip?.path || ctx.capture?.dir, f.action, f.solve]);
+  if (fixed.has(id)) return h('span', {class: 'meta'}, 'queued');
+  const label = f.action === 'regenerate' ? (group.some(i => i.fix.prompt_add) ? 'Generate again with fixes in the prompt' : 'Generate again with new seeds') :
+    f.action === 'rig_task' && group.length > 1 ? `Add these ${group.length} to the rig to-do list` : f.label;
+  return h('button', {class: 'fix', title: [...new Set(group.map(i => i.fix.prompt_add || i.fix.solve).filter(Boolean))].join('\n'),
+    onclick: async e => {
+      try {
+        const ok = await applyFix(group, ctx);
+        if (ok !== false) { fixed.add(id); e.target.replaceWith(h('span', {class: 'meta'}, 'queued')); pollJobs(); }
+      } catch (err) { toast(err.message); }
+    }}, label);
+}
+async function applyFix(group, {m, clip, capture}) {
+  const i = group[0], f = i.fix;
+  const creature = m.creature || (capture || clip).dir?.split('/runs/')[0];
+  if (f.action === 'reexport') { await api('/api/jobs/reexport', {capture: capture.dir}); toast('Export queued; it is checked again when done'); }
+  else if (f.action === 'rebuild_rig') { await api('/api/jobs/rebuild_rig', {creature}); toast('Rig rebuild queued; the old rig is kept'); }
+  else if (f.action === 'rig_task') {
+    for (const j of group) await api('/api/todo', {creature, text: `${capture?.name || clip?.label} ${fmt(j.t0)}–${fmt(j.t1)}: ${j.what}`});
+    toast('Added to the rig to-do list'); loadProject();
+  } else if (f.action === 'recapture' && !capture) {  // straight from a clip: a new capture
+    await api('/api/jobs/capture', {video: clip.path, solve: f.solve || '', clean: f.clean || '', body3d: S.info.body3d});
+    toast('Capture queued; it is checked when done');
+  } else if (f.action === 'recapture') {
+    if (!capture.source) return toast('This capture\'s clip is unknown, so it can\'t be captured again'), false;
+    await api('/api/jobs/capture', {video: capture.source, name: capture.name, replace: true, solve: f.solve || '', clean: f.clean || '',
+      speed: capture.speed || 1, body3d: !!capture.body3d});
+    toast('Capture queued');
+  } else if (f.action === 'regenerate') {
+    const src = clip || m.clips.find(c => c.path === capture?.source);
+    return regenerateDialog(m, src, group);
+  }
+}
+function regenerateDialog(m, clip, issues) {
+  const base = clip?.prompt || m.prompt;
+  const adds = issues.map(i => i.fix.prompt_add).filter(Boolean);
+  const ta = h('textarea', {rows: 8}); ta.value = [base, ...adds.filter(a => !base.includes(a))].join(' ');
+  const count = h('select', {}, ...[1, 2, 3, 4].map(n => h('option', {selected: n === 2}, n)));
+  const job = clip?.job || {}, model = job.model || S.info.wan_models[0], seconds = Math.min(job.seconds || 99, S.info.wan_seconds[model]);
+  const ref = job.ref || S.data.refs.find(r => r.path.startsWith(m.creature + '/'))?.path;
+  return new Promise(resolve => {
+    const dlg = h('dialog', {class: 'dlg'},
+      h('h2', {}, 'Generate ', m.move, ' again'),
+      h('p', {class: 'meta'}, issues.map(i => `${fmt(i.t0)}: ${i.what}`).join(' · ')),
+      ta,
+      h('p', {class: 'meta'}, `Same settings as ${clip ? 'this clip' : 'the default'}: ${model} · ${seconds} s · ${job.steps || 'default'} steps · `,
+        ref ? h('a', {href: file(ref), target: '_blank'}, 'reference frame') : 'no reference frame'),
+      h('div', {class: 'row', style: 'margin-top:10px'}, h('label', {}, 'New seeds', count), h('div', {class: 'spacer'}),
+        h('button', {onclick: () => { dlg.close(); resolve(false); }}, 'Cancel'),
+        h('button', {class: 'primary', onclick: async () => {
+          try {
+            await api('/api/jobs/wan', {project: S.project, creature: m.creature, move: m.move, prompt: ta.value,
+              ref, model, seconds, steps: job.steps || '', count: count.value, save_prompt: false, fixes: issues.map(i => i.what)});
+            toast(`Queued ${count.value} clips; each is checked when done`); dlg.close(); resolve(true);
+          } catch (err) { toast(err.message); }
+        }}, 'Queue')));
+    dlg.addEventListener('close', () => { dlg.remove(); resolve(false); });
+    document.body.append(dlg); dlg.showModal();
+  });
+}
+function capture(c, m) {
+  const name = h('input', {size: 24}); name.value = c.captures[0] || m.move;
+  const slow = /slow[ -]motion|slowly/i.test(c.prompt || '');  // filmed slow: play it back faster
+  const speed = h('select', {}, ...[1, 1.5, 2, 3].map(x => h('option', {value: x, selected: x === (slow ? 2 : 1)}, x + '×')));
+  const depth = h('select', {},
+    h('option', {value: 1, disabled: !S.info.body3d, selected: S.info.body3d}, 'front view + SAM 3D Body'),
+    h('option', {value: '', selected: !S.info.body3d}, 'both halves of the clip'));
+  const dlg = h('dialog', {class: 'dlg'},
+    h('h2', {}, 'Capture ', c.label),
+    h('div', {class: 'row'}, h('label', {}, 'Name', name),
+      h('label', {title: 'play the captured motion this much faster than the clip: for moves filmed in slow motion'}, 'Speed', speed),
+      h('label', {title: 'where depth comes from: SAM 3D Body reading the front view (the clip\'s side half is ignored, so a side view that turned into a second front view does no harm), or the side half'}, 'Depth', depth)),
+    slow ? h('p', {class: 'meta'}, 'The prompt asks for slow motion, so the capture plays 2× faster by default.') : null,
+    S.info.body3d ? null : h('p', {class: 'meta'}, 'SAM 3D Body isn\'t set up (', h('code', {}, S.info.body3d_python), '), so depth comes from the side half.'),
+    h('div', {class: 'row', style: 'margin-top:10px'}, h('div', {class: 'spacer'}),
+      h('button', {onclick: () => dlg.close()}, 'Cancel'),
+      h('button', {class: 'primary', onclick: () => {
+        const n = name.value.trim();
+        if (!n) return;
+        api('/api/jobs/capture', {video: c.path, name: n, replace: c.captures.includes(n), speed: speed.value, body3d: !!depth.value})
+          .then(() => { toast('Capture queued; it is checked when done'); pollJobs(); dlg.close(); }).catch(err => toast(err.message));
+      }}, 'Capture')));
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg); dlg.showModal();
+}
+function openVideo(path, title) {
+  const v = h('video', {src: file(path), controls: true, autoplay: true, loop: true, muted: true, style: 'width:100%'});
+  const dlg = h('dialog', {class: 'dlg', style: 'width:min(1300px,96vw)'}, h('div', {class: 'row'}, h('b', {style: 'flex:1'}, title),
+    h('button', {onclick: () => dlg.close()}, 'Close')), v);
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg); dlg.showModal();
+}
+
+function renderRig(creature) {
+  const main = $('#moveMain');
+  const r = S.data.rigs.find(r => r.creature === creature);
+  renderedMove = '';
+  if (!r) return main.replaceChildren(h('div', {class: 'empty'}, 'No rig'));
+  const c = r.check;
+  const stale = S.data.moves.flatMap(m => m.captures).filter(k => k.creature === creature && (k.rig_stale || k.check?.issues.some(i => i.stage === 'rig')));
+  main.replaceChildren(h('div', {class: 'card'},
+    h('h2', {}, 'Rig · ', creature, ' ', c ? h('span', {class: 'badge verdict ' + (c.ok ? 'good' : 'bad')}, c.ok ? '✓ skin weights look right' : 'skin weights reach too far') :
+      h('span', {class: 'badge'}, 'checking…')),
+    c ? h('p', {}, c.summary) : null,
+    // a rebuild only helps when the rigging code changed since the rig was built: the same code gives the same weights
+    c && !c.ok && (r.layout !== 'rigging' || r.code_newer) ? h('div', {class: 'row'}, h('button', {class: 'fix', onclick: e => applyFix({fix: {action: 'rebuild_rig'}}, {m: {creature}}).then(() => e.target.replaceWith(h('span', {class: 'meta'}, 'queued')))},
+      r.layout === 'rigging' ? 'Rebuild the rig (the rigging code changed since it was built; the old rig is kept)' :
+      'Rebuild the rig (fades limb weights off the body; the old rig is kept)')) : null,
+    c && !c.ok && r.layout === 'rigging' && !r.code_newer ? h('p', {class: 'meta'},
+      'The rig is already built with the current rigging code, so a rebuild gives the same weights. ' +
+      'This needs a change to the rigging itself (docs/rigging-plan.md, "Still open").') : null,
+    stale.length ? h('div', {class: 'row', style: 'margin:10px 0'}, h('span', {}, `${stale.length} capture${stale.length > 1 ? 's were' : ' was'} exported with an older rig: ${stale.map(k => k.name).join(', ')}`),
+      h('button', {class: 'fix', onclick: async e => { for (const k of stale) await api('/api/jobs/reexport', {capture: k.dir}); e.target.replaceWith(h('span', {class: 'meta'}, 'queued')); pollJobs(); }},
+        'Export them all again')) : null,
+    r.image ? h('img', {src: file(r.image) + '?' + r.built, style: 'max-width:100%;border-radius:6px;margin-top:10px', title: 'front and side: limbs in their paint colours, vertices a limb drags with it in red'}) : null,
+    h('h2', {style: 'margin-top:16px'}, 'Rig to-do'),
+    r.todo ? h('pre', {}, r.todo) : h('p', {class: 'meta'}, 'Nothing yet. Skin problems the checks find can be added here.'),
+    copyMovesCard(creature), equipCard(creature), exportCard(creature.split('/')[0])));
+}
+// The equip preview (equip.js, the same module the game export ships): a capture played on the character, an item
+// on each socket; the choice saved as the character's default loadout for the export's manifest.
+function equipCard(creature) {
+  const box = h('div', {}, h('button', {onclick: () => openEquip(creature, box)}, 'Open the preview'));
+  return h('div', {}, h('h2', {style: 'margin-top:16px'}, 'Equip preview'), box);
+}
+async function openEquip(creature, box) {
+  let info;
+  try { info = await api(`/api/equip?creature=${encodeURIComponent(creature)}`); } catch (err) { return toast(err.message, 6000); }
+  if (!info.sockets.length) return box.replaceChildren(h('p', {class: 'meta'}, 'This rig has no sockets yet. ' +
+    'Rebuild it (the rigging adds them), or add them to it as it is: blender -b rigged.blend -P rigging/blender/add_sockets.py.'));
+  if (!info.captures.length) return box.replaceChildren(h('p', {class: 'meta'}, 'No exported captures yet: make or copy a move first.'));
+  const eq = await import('/equip.js');
+  const view = h('div', {style: 'height:520px;border-radius:6px;overflow:hidden;margin-top:8px'});
+  const clip = h('select', {}, info.captures.map(k => h('option', {value: k.glb}, (k.move ? k.move + ' · ' : '') + k.name)));
+  const kind = s => s.split('_')[1];
+  const picks = Object.fromEntries(info.sockets.map(s => [s, h('select', {}, h('option', {value: ''}, 'empty'),
+    ...info.items.filter(i => i.fits.includes(kind(s))).map(i => h('option', {value: i.name, selected: info.loadout[s] === i.name},
+      i.name + (i.metres ? '' : ' (no real length)'))))]));
+  const status = h('span', {class: 'meta'});
+  const save = async () => {
+    try { await api('/api/loadout', {creature, loadout: Object.fromEntries(Object.entries(picks).map(([s, p]) => [s, p.value]))}); toast('Saved as the default loadout'); }
+    catch (err) { toast(err.message, 6000); }
+  };
+  box.replaceChildren(h('div', {class: 'row'}, 'Clip ', clip,
+    ...info.sockets.flatMap(s => ['  ', s.replace('socket_', '').replace('_', ' '), ' ', picks[s]]),
+    '  ', h('button', {onclick: save, title: "Written to the character's rigging/loadout.json; the game export puts it in manifest.json"}, 'Save as default loadout'), ' ', status),
+    ...(info.items.length ? [] : [h('p', {class: 'meta'}, 'No items with a light copy yet: open an item in the Models tab and use one of its models for the item.')]),
+    view);
+  status.textContent = 'loading…';
+  try {
+    const viewer = new eq.Viewer(view);
+    const ch = new eq.Character(await eq.load(file(info.captures[0].glb)));
+    viewer.show(ch);
+    const playClip = async () => {
+      status.textContent = 'loading…';
+      ch.addClips(await eq.load(file(clip.value)), clip.value);
+      ch.play(clip.value);
+      status.textContent = '';
+    };
+    const setItem = async s => {
+      const it = info.items.find(i => i.name === picks[s].value);
+      ch.equip(s, it ? (await eq.load(file(it.model))).scene : null);
+    };
+    clip.onchange = playClip;
+    for (const s of info.sockets) { picks[s].onchange = () => setItem(s); await setItem(s); }
+    await playClip();
+  } catch (err) { status.textContent = 'failed: ' + err.message; }
+}
+// The project's game export (rigging/export_game.py): characters with the captures picked (kept ones ticked), items.
+function exportCard(group) {
+  const box = h('div', {}, h('button', {onclick: async () => {
+    let r;
+    try { r = await api(`/api/export_sources?group=${encodeURIComponent(group)}`); } catch (err) { return toast(err.message, 6000); }
+    const pick = (name, checked, label) => h('label', {style: 'margin-right:10px;white-space:nowrap'},
+      h('input', {type: 'checkbox', class: 'exppick', value: name, checked}), label);
+    const chars = r.characters.map(c => h('div', {class: 'expchar', 'data-name': c.name, style: 'margin:8px 0'},
+      h('b', {}, c.name), c.sockets.length ? '' : h('span', {class: 'meta'}, ' (no sockets: items can\'t be attached)'), ' ',
+      h('button', {onclick: e => e.target.closest('.expchar').querySelectorAll('.exppick').forEach(b => b.checked = true)}, 'all'), ' ',
+      h('button', {onclick: e => e.target.closest('.expchar').querySelectorAll('.exppick').forEach(b => b.checked = false)}, 'none'),
+      h('div', {}, ...c.captures.map(k => pick(k.name, k.kept, (k.move ? k.move + ' · ' : '') + k.name + (k.kept ? ' ✓' : ''))))));
+    const items = h('div', {class: 'expitems', style: 'margin:8px 0'}, h('b', {}, 'Items'), ' ',
+      ...(r.items.length ? r.items.map(i => pick(i.name, true, i.name + (i.metres ? ` (${i.length_m} m)` : ' (no real length)'))) :
+        [h('span', {class: 'meta'}, 'none with a light copy yet')]));
+    box.replaceChildren(
+      ...!r.export ? [] : [h('p', {class: 'meta'}, `Last export: ${r.export.made}, ${Object.keys(r.export.characters).length} characters, ` +
+        `${Object.values(r.export.characters).reduce((n, c) => n + Object.keys(c.clips).length, 0)} clips, ${Object.keys(r.export.items).length} items, in ${group}/export/.`)],
+      h('p', {class: 'meta'}, 'Ticked: the kept captures (✓) and every item. Written to ' + group + '/export/ (the previous one kept as export_previous/), ' +
+        'with manifest.json, equip.js and an example page (serve the folder over http to open it).'),
+      ...chars, items,
+      h('div', {class: 'row', style: 'margin:8px 0'}, h('label', {title: "A folder in the game project to copy the export into, e.g. " +
+          "~/cosmos/sparkdream/battle-royale/client/assets/models/sparkdream. Replaced only if it is empty or an earlier copy of this export."},
+        'Also copy into the game ', h('input', {class: 'expdest', size: 60, placeholder: '(optional) a folder in the game project',
+          value: store('exportDest.' + group) || ''}))),
+      h('button', {class: 'fix', onclick: async e => {
+        const characters = Object.fromEntries([...box.querySelectorAll('.expchar')].map(d =>
+          [d.dataset.name, [...d.querySelectorAll('.exppick:checked')].map(b => b.value)]));
+        const its = [...box.querySelectorAll('.expitems .exppick:checked')].map(b => b.value);
+        const copy_to = box.querySelector('.expdest').value.trim();
+        store('exportDest.' + group, copy_to);
+        try { await api('/api/jobs/export', {group, characters, items: its, copy_to}); } catch (err) { return toast(err.message, 6000); }
+        e.target.replaceWith(h('span', {class: 'meta'}, 'Export queued: see Jobs')); pollJobs();
+      }}, 'Export'));
+  }}, 'Choose what to export…'));
+  return h('div', {}, h('h2', {style: 'margin-top:16px'}, 'Export the project for the game'), box);
+}
+// Captures of another character of the project made again on this rig (/api/jobs/copy_moves, rigging/copy_moves.py).
+// The kept ones start ticked; ones this character already has are left out.
+function copyMovesCard(creature) {
+  const box = h('div', {}, h('button', {onclick: async () => {
+    let r;
+    try { r = await api(`/api/move_sources?creature=${encodeURIComponent(creature)}`); } catch (err) { return toast(err.message, 6000); }
+    const have = new Set(S.data.moves.flatMap(m => m.captures).filter(k => k.creature === creature).map(k => k.name));
+    if (!r.sources.length) return box.replaceChildren(h('p', {class: 'meta'}, 'No other character in this project has captures.'));
+    const pick = h('select', {}, r.sources.map((s, i) => h('option', {value: i}, s.character)));
+    const list = h('div', {});
+    const show = () => {
+      const s = r.sources[pick.value];
+      const caps = s.captures.filter(k => !have.has(k.name));
+      list.replaceChildren(caps.length ? h('div', {}, ...Object.entries(groupBy(caps, k => k.move || 'other')).map(([move, ks]) =>
+        h('div', {style: 'margin:6px 0'}, h('b', {}, move), ' ', ...ks.map(k => h('label', {style: 'margin-right:10px;white-space:nowrap'},
+          h('input', {type: 'checkbox', class: 'copypick', value: k.name, checked: k.kept}), k.name + (k.kept ? ' ✓' : '')))))) :
+        h('p', {class: 'meta'}, 'This character already has all of them.'));
+    };
+    pick.onchange = show; show();
+    box.replaceChildren(h('div', {class: 'row'}, 'From ', pick),
+      h('p', {class: 'meta'}, 'Ticked: the kept ones (✓). Each is retargeted onto this rig (from Kimodo\'s own motion when it has it, else from the other rig\'s) and exported. The moves\' prompts and recipes come too.'),
+      list, h('button', {class: 'fix', onclick: async e => {
+        const names = [...list.querySelectorAll('.copypick:checked')].map(b => b.value);
+        if (!names.length) return toast('Tick some captures');
+        try { await api('/api/jobs/copy_moves', {creature, source: r.sources[pick.value].creature, captures: names}); }
+        catch (err) { return toast(err.message, 6000); }
+        e.target.replaceWith(h('span', {class: 'meta'}, 'Copy queued: see Jobs')); pollJobs();
+      }}, 'Copy'));
+  }}, 'Choose moves…'));
+  return h('div', {}, h('h2', {style: 'margin-top:16px'}, 'Copy moves from another character'), box);
 }
 function step(videos, n) { videos.forEach(v => { v.pause(); v.currentTime = Math.max(0, v.currentTime + n / v.dataset.fps); }); }
 
@@ -354,7 +1136,9 @@ function generateCard(m, keepPrompt) {
   ta.value = keepPrompt ?? m.prompt;
   const seeds = h('input', {placeholder: 'random', size: 10, title: 'one clip per seed: 1,2,3'});
   const model = h('select', {}, ...S.info.wan_models.map(x => h('option', {}, x)));
-  const seconds = h('input', {type: 'number', value: 5, min: 1, max: 10, style: 'width:60px'});
+  const seconds = h('input', {type: 'number', min: 1, style: 'width:60px'});
+  const fit = () => { seconds.max = seconds.value = S.info.wan_seconds[model.value]; };  // the longest that fits the GPU
+  model.onchange = fit; fit();
   const steps = h('input', {type: 'number', placeholder: 'default', style: 'width:80px'});
   const save = h('input', {type: 'checkbox', checked: true});
   const go = async () => {
@@ -389,22 +1173,66 @@ async function pollJobs() {
     pollJobs.t = setTimeout(pollJobs, active || S.tab === 'jobs' ? 2000 : 10000);
   } catch { pollJobs.t = setTimeout(pollJobs, 5000); }
 }
+// Before generating a move again: its captures' automatic checks still waiting in the queue are for samples about to
+// be superseded, so offer to drop them (and only them).
+async function offerCancelChecks(project, move) {
+  let waiting = [];
+  try { waiting = await api('/api/jobs/move_checks', {project, move}); } catch { return; }
+  if (!waiting.length) return;
+  if (!confirm(`${waiting.length} automatic check${waiting.length === 1 ? ' is' : 's are'} still queued for earlier ${move} captures. `
+               + 'Cancel them? (OK cancels them, Cancel keeps them; the new generation is queued either way.)')) return;
+  try { const r = await api('/api/jobs/cancel_many', {ids: waiting.map(j => j.id)}); toast(`Cancelled ${r.cancelled} queued checks`); }
+  catch (err) { toast(err.message); }
+}
+async function cancelJobs(body, what) {
+  if (!confirm(`Cancel ${what}?`)) return;
+  try {
+    const r = await api('/api/jobs/cancel_many', body);
+    r.ids.forEach(id => S.jobSel.delete(id));
+    toast(`Cancelled ${r.cancelled} job${r.cancelled === 1 ? '' : 's'}`);
+  } catch (err) { toast(err.message); }
+  pollJobs();
+}
+function jobsBar(active) {
+  const auto = active.filter(j => j.auto), sel = active.filter(j => S.jobSel.has(j.id));
+  const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
+  const all = h('input', {type: 'checkbox', checked: active.length > 0 && sel.length === active.length,
+    onchange: e => { active.forEach(j => e.target.checked ? S.jobSel.add(j.id) : S.jobSel.delete(j.id)); renderJobs(); }});
+  all.indeterminate = sel.length > 0 && sel.length < active.length;
+  return h('div', {class: 'card row jobsbar'},
+    h('label', {class: 'inline'}, all, 'Select all queued and running'),
+    h('div', {class: 'spacer'}),
+    h('button', {class: 'reject', disabled: !sel.length,
+      onclick: () => cancelJobs({ids: sel.map(j => j.id)}, `the ${n(sel.length, 'selected job')}`)}, `Cancel selected (${sel.length})`),
+    h('button', {class: 'reject', disabled: !auto.length,
+      onclick: () => cancelJobs({all: true, auto: true}, n(auto.length, 'automatic check'))}, `Cancel automatic (${auto.length})`),
+    h('button', {class: 'reject', disabled: !active.length,
+      onclick: () => cancelJobs({all: true}, `all ${n(active.length, 'queued and running job')}`)}, `Cancel all (${active.length})`));
+}
 function renderJobs() {
   const main = $('#jobList');
   if (!S.jobs.length) return main.replaceChildren(h('div', {class: 'empty'}, 'No jobs yet. Queue one from Models or Clips.'));
-  main.replaceChildren(...S.jobs.map(j => {
+  const active = S.jobs.filter(j => ['queued', 'running'].includes(j.status));
+  for (const id of [...S.jobSel]) if (!active.some(j => j.id === id)) S.jobSel.delete(id);  // finished meanwhile
+  main.replaceChildren(jobsBar(active), ...S.jobs.map(j => {
     const t = j.started ? Math.round(((j.ended || Date.now() / 1000) - j.started) / 60) + ' min' : '';
     const pct = j.status === 'done' ? 100 : j.steps ? 100 * j.steps[0] / j.steps[1] : 0;
     const open = S.openLogs.has(j.id);
-    return h('div', {class: 'card job'},
-      h('span', {class: 'status ' + j.status}, j.status),
-      h('div', {}, h('b', {}, j.label), h('div', {class: 'meta'}, j.out, ' · ', ago(j.created), t && ' · ' + t,
+    const live = ['queued', 'running'].includes(j.status);
+    return h('div', {class: 'card job' + (S.jobSel.has(j.id) ? ' picked' : '')},
+      h('label', {class: 'jobpick'},
+        live ? h('input', {type: 'checkbox', checked: S.jobSel.has(j.id),
+          onchange: e => { e.target.checked ? S.jobSel.add(j.id) : S.jobSel.delete(j.id); renderJobs(); }}) : null,
+        h('span', {class: 'status ' + j.status}, j.status)),
+      h('div', {}, h('b', {}, j.label), j.auto ? h('span', {class: 'badge', style: 'margin-left:6px'}, 'automatic') : null,
+        h('div', {class: 'meta'}, j.out, ' · ', ago(j.created), t && ' · ' + t,
         j.steps && j.status === 'running' ? ` · step ${j.steps[0]}/${j.steps[1]}` : '')),
       h('div', {class: 'row'},
         h('button', {onclick: () => { open ? S.openLogs.delete(j.id) : S.openLogs.add(j.id); renderJobs(); }}, open ? 'Hide log' : 'Log'),
         ['queued', 'running'].includes(j.status) ? h('button', {class: 'reject', onclick: () => api('/api/jobs/cancel', {id: j.id}).then(pollJobs)}, 'Cancel') : null),
       j.status === 'running' ? h('div', {class: 'bar'}, h('div', {style: `width:${pct}%`})) : null,
-      open ? h('pre', {style: 'grid-column:1/4'}, j.tail) : null);
+      open ? h('pre', {style: 'grid-column:1/4'}, j.tail) : null,
+      j.script ? h('pre', {style: 'grid-column:1/4', title: 'a dry-run server only lists jobs'}, j.script) : null);
   }));
 }
 async function showLog(path) {
@@ -419,45 +1247,123 @@ async function showLog(path) {
 // ---------------------------------------------------------------- wiring
 function render() {
   if (!S.data) return;
-  if (S.tab === 'models') { renderModels(); renderImages(); }
-  if (S.tab === 'clips') renderMoves();
+  if (S.tab === 'models') renderModels();
+  if (S.tab === 'views') renderViews();
+  if (S.tab === 'clips' || S.tab === 'motion') renderMoves();
   if (S.tab === 'jobs') renderJobs();
 }
 function setTab(tab) {
   S.tab = tab; store('tab', tab);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === tab));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === (tab === 'motion' ? 'clips' : tab)));
   render(); pollJobs();
 }
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $('#hideRejected').addEventListener('change', render);
-$('#project').addEventListener('change', e => { S.project = e.target.value; store('project', S.project); loadProject(true); });
+// The wheel over a 3D view scrolls the page, as anywhere else; Ctrl + wheel zooms it. model-viewer would otherwise take
+// every wheel turn for zooming, and the page could only be scrolled from its scrollbar. Stopped on the way down (capture
+// phase, at the document) so it never reaches the viewer; the page's own scrolling is left alone.
+document.addEventListener('wheel', e => { if (!e.ctrlKey && e.target.closest?.('model-viewer')) e.stopPropagation(); },
+  {capture: true, passive: true});
+$('#deleteRejected').addEventListener('click', () => {
+  const clips = S.data.moves.flatMap(m => m.clips).filter(c => verdict(c.path) === 'reject');
+  const caps = S.data.moves.flatMap(m => m.captures).filter(k => verdict(k.glb) === 'reject');
+  trash([...clips.map(c => ({kind: 'clip', path: c.path})), ...caps.map(k => ({kind: 'capture', path: k.dir}))],
+    `${clips.length} rejected clip${clips.length === 1 ? '' : 's'} and ${caps.length} rejected capture${caps.length === 1 ? '' : 's'}`);
+});
+const NEW_CHARACTER = '\u0000character', NEW_PROJECT = '\u0000project', NEW_ITEM = '\u0000item';
+$('#project').addEventListener('change', e => {
+  const v = e.target.value;
+  if (v === NEW_CHARACTER || v === NEW_PROJECT || v === NEW_ITEM) { e.target.value = S.project || ''; return v === NEW_CHARACTER ? newCharacter() : v === NEW_ITEM ? newCharacter(undefined, true) : newProject(); }
+  S.project = v; store('project', S.project); loadProject(true);
+});
+const groupOf = c => c.includes('/') ? c.split('/')[0] : '';
+const isItem = c => c.split('/').length === 3;  // project/items/name: shared by every character in the project
+function ask(title, fields, note, submit) {  // a small form in a dialog; submit(dlg) closes it when done
+  const go = h('button', {class: 'primary', type: 'submit'}, 'Create');
+  const form = h('form', {}, h('h2', {style: 'margin-top:0'}, title), h('div', {class: 'row'}, ...fields), h('p', {class: 'meta'}, note),
+    h('div', {class: 'row', style: 'justify-content:flex-end'}, h('button', {type: 'button', onclick: () => dlg.close()}, 'Cancel'), go));
+  const dlg = h('dialog', {class: 'dlg', style: 'width:min(600px,95vw)'}, form);
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); go.disabled = true;
+    try { await submit(dlg); } catch (err) { toast(err.message, 6000); } finally { go.disabled = false; }
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg); dlg.showModal(); form.querySelector('input')?.focus();
+}
+const NAME_NOTE = 'A name is letters, digits, _ . and -, starting with a letter or digit.';
+// A new character: its own folder (outputs/<project>/<name>/, or outputs/<name>/ in no project) for its views, models,
+// rig and clips, so working on it never touches another character. The image (optional) becomes its front view.
+// An item (item true): a dagger, a quiver, anything a character holds or wears, in outputs/<project>/items/<name>/,
+// shared by every character in the project; made like a character (views, TRELLIS runs).
+function newCharacter(group = groupOf(S.project || ''), item = false) {
+  const name = h('input', {size: 20, placeholder: item ? 'e.g. dagger' : 'e.g. knight', required: true});
+  const proj = h('select', {}, ...(item ? [] : [h('option', {value: ''}, '(no project)')]), ...S.info.groups.map(g => h('option', {}, g)));
+  proj.value = S.info.groups.includes(group) ? group : item ? S.info.groups[0] : '';
+  const image = h('input', {type: 'file', accept: 'image/png,image/jpeg,image/webp'});
+  ask(item ? 'New item' : 'New character', [h('label', {}, 'Project', proj), h('label', {}, 'Name', name), h('label', {}, 'Front image (optional)', image)],
+    NAME_NOTE + (item ? ' Every character in the project can use it. It gets its own folder for its views and models.'
+                      : ' It gets its own folder for its views, models, rig and clips.'), async dlg => {
+      const {name: id} = await api('/api/characters', {group: proj.value, name: name.value.trim(), item});
+      const f = image.files[0];
+      if (f) {
+        const up = await fetch(`/api/upload?project=${encodeURIComponent(id)}&name=${encodeURIComponent(f.name.replace(/[^A-Za-z0-9_.-]/g, '_'))}`, {method: 'POST', body: f});
+        const i = await up.json(); if (!up.ok) throw new Error(i.error);
+        await api('/api/views/add', {views_dir: id, view: 'front', image: i.path});
+      }
+      dlg.close();
+      store('project', id); await loadProjects(id); setTab('views');
+      toast(f ? `${id} created, with ${f.name} as its front view` : `${id} created: add an image as its front view`);
+    });
+}
+function newProject() {
+  const name = h('input', {size: 20, placeholder: 'e.g. fantasy', required: true});
+  ask('New project', [h('label', {}, 'Name', name)], NAME_NOTE + ' A project holds characters: its first one is made next.', async dlg => {
+    const {name: g} = await api('/api/groups', {name: name.value.trim()});
+    dlg.close();
+    S.info = await api('/api/projects'); fillProjects();
+    newCharacter(g);
+  });
+}
+function fillProjects() {
+  const opt = c => h('option', {value: c}, c.split('/').pop());
+  const loose = S.info.characters.filter(c => !groupOf(c));
+  $('#project').replaceChildren(
+    ...S.info.groups.flatMap(g => { const cs = S.info.characters.filter(c => groupOf(c) === g && !isItem(c));
+      const items = S.info.characters.filter(c => groupOf(c) === g && isItem(c));
+      return [h('optgroup', {label: g}, ...(cs.length ? cs.map(opt) : [h('option', {disabled: true}, '(no characters yet)')])),
+        ...(items.length ? [h('optgroup', {label: g + ' · items'}, ...items.map(opt))] : [])]; }),
+    ...(loose.length ? [h('optgroup', {label: S.info.groups.length ? 'No project' : 'Characters'}, ...loose.map(opt))] : []),
+    h('optgroup', {label: '──────'}, h('option', {value: NEW_CHARACTER}, '+ New character…'),
+      ...(S.info.groups.length ? [h('option', {value: NEW_ITEM}, '+ New item…')] : []), h('option', {value: NEW_PROJECT}, '+ New project…')));
+  $('#project').value = S.project || '';
+}
 document.addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
   if (S.tab === 'models' && S.a && (e.key === 'k' || e.key === 'r')) review(S.a, {verdict: e.key === 'k' ? (verdict(S.a) === 'keep' ? null : 'keep') : (verdict(S.a) === 'reject' ? null : 'reject')});
   const vids = $('#moveMain').videos || [];
-  if (S.tab === 'clips' && e.key === ' ') { e.preventDefault(); vids.forEach(v => v.paused ? v.play() : v.pause()); }
-  if (S.tab === 'clips' && (e.key === ',' || e.key === '.')) step(vids, e.key === '.' ? 1 : -1);
+  if ((S.tab === 'clips' || S.tab === 'motion') && e.key === ' ') { e.preventDefault(); vids.forEach(v => v.paused ? v.play() : v.pause()); }
+  if ((S.tab === 'clips' || S.tab === 'motion') && (e.key === ',' || e.key === '.')) step(vids, e.key === '.' ? 1 : -1);
 });
 
 async function loadProject(fresh) {
-  const data = await api('/api/project?name=' + encodeURIComponent(S.project));
+  const project = S.project;
+  const data = await api('/api/project?name=' + encodeURIComponent(project));
+  if (project !== S.project) return;  // another character was picked meanwhile
   S.data = data;
-  if (fresh) { S.a = store('model.' + S.project); S.b = null; S.move = store('move.' + S.project); S.image = null; renderedMove = ''; viewersKey = ''; }
+  if (fresh) { S.a = store('model.' + S.project); S.b = null; S.move = store('move.' + S.project); renderedMove = ''; viewersKey = ''; }
   if (!data.models.find(m => m.path === S.a)) S.a = [...data.models].sort((x, y) => y.mtime - x.mtime)[0]?.path || null;
-  $('#tProject').value = S.project;
   render();
 }
 async function loadProjects(select) {
   S.info = await api('/api/projects');
-  const sel = $('#project');
-  sel.replaceChildren(...S.info.projects.map(p => h('option', {}, p)));
-  S.project = select || (S.info.projects.includes(store('project')) ? store('project') : S.info.projects.includes('rogue') ? 'rogue' : S.info.projects[0]);
-  sel.value = S.project;
-  $('#tType').replaceChildren(...S.info.trellis_types.map(t => h('option', {}, t)));
+  const cs = S.info.characters;
+  S.project = select || (cs.includes(store('project')) ? store('project') : cs[0]);
+  fillProjects();
+  tIn('tType').replaceChildren(...S.info.trellis_types.map(t => h('option', {}, t)));
   if (S.project) await loadProject(true);
 }
-loadProjects().then(() => setTab(store('tab') || 'models'));
+loadProjects().then(() => setTab(store('tab') || 'views'));
 </script>
 </body>
 </html>

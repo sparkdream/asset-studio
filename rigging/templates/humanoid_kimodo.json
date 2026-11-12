@@ -1,0 +1,27 @@
+{
+ "note": "The humanoid template's bones driven from Kimodo's SOMA skeleton (somaskel77) by rigging/blender/retarget_kimodo.py. Each rig bone takes the world turn of its SOMA joint since the rest pose; a bone with no entry turns with its parent. SOMA has no twist joints: an upper-arm or thigh twist bone turns with its limb, a forearm twist bone with the hand (the far end of the forearm rolls with the wrist). Left is the character's left.",
+ "map": {
+  "pelvis": "Hips", "spine_01": "Spine1", "spine_02": "Spine2", "spine_03": "Chest", "neck": "Neck1", "head": "Head",
+  "clavicle_L": "LeftShoulder", "upperarm_L": "LeftArm", "upperarm_twist_L": "LeftArm", "lowerarm_L": "LeftForeArm",
+  "lowerarm_twist_L": "LeftHand", "hand_L": "LeftHand",
+  "clavicle_R": "RightShoulder", "upperarm_R": "RightArm", "upperarm_twist_R": "RightArm", "lowerarm_R": "RightForeArm",
+  "lowerarm_twist_R": "RightHand", "hand_R": "RightHand",
+  "thigh_L": "LeftLeg", "thigh_twist_L": "LeftLeg", "calf_L": "LeftShin", "foot_L": "LeftFoot", "ball_L": "LeftToeBase",
+  "thigh_R": "RightLeg", "thigh_twist_R": "RightLeg", "calf_R": "RightShin", "foot_R": "RightFoot", "ball_R": "RightToeBase"
+ },
+ "aim": {
+  "clavicle_L": ["LeftShoulder", "LeftArm"], "upperarm_L": ["LeftArm", "LeftForeArm"],
+  "upperarm_twist_L": ["LeftArm", "LeftForeArm"], "lowerarm_L": ["LeftForeArm", "LeftHand"],
+  "lowerarm_twist_L": ["LeftForeArm", "LeftHand"], "hand_L": ["LeftHand", "LeftHandMiddleEnd"],
+  "clavicle_R": ["RightShoulder", "RightArm"], "upperarm_R": ["RightArm", "RightForeArm"],
+  "upperarm_twist_R": ["RightArm", "RightForeArm"], "lowerarm_R": ["RightForeArm", "RightHand"],
+  "lowerarm_twist_R": ["RightForeArm", "RightHand"], "hand_R": ["RightHand", "RightHandMiddleEnd"],
+  "thigh_L": ["LeftLeg", "LeftShin"], "thigh_twist_L": ["LeftLeg", "LeftShin"], "calf_L": ["LeftShin", "LeftFoot"],
+  "foot_L": ["LeftFoot", "LeftToeBase"],
+  "thigh_R": ["RightLeg", "RightShin"], "thigh_twist_R": ["RightLeg", "RightShin"], "calf_R": ["RightShin", "RightFoot"],
+  "foot_R": ["RightFoot", "RightToeBase"]
+ },
+ "feet": ["ankle", "ball", "toetip"],
+ "height_joints": ["Hips", "Head"],
+ "height_bones": ["pelvis", "head"]
+}
